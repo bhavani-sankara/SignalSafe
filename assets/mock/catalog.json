@@ -1,0 +1,152 @@
+{
+  "user": {
+    "name": "Aarav Reddy",
+    "handle": "Gachibowli · Hyderabad",
+    "preferredOperator": "jio"
+  },
+  "currentLocation": [17.4401, 78.3489],
+  "operators": ["jio", "airtel", "vi", "bsnl"],
+  "places": [
+    {"id": "gachibowli", "name": "Gachibowli, Hyderabad", "category": "origin", "lat": 17.4401, "lng": 78.3489, "subtitle": "Current location"},
+    {"id": "srisailam", "name": "Srisailam", "category": "destination", "lat": 16.0733, "lng": 78.8682, "subtitle": "Temple town · Kurnool district"},
+    {"id": "hitech", "name": "HITEC City", "category": "destination", "lat": 17.4483, "lng": 78.3915, "subtitle": "Hyderabad"},
+    {"id": "hosp_nims", "name": "NIMS Hospital", "category": "hospital", "lat": 17.4219, "lng": 78.4490, "subtitle": "Punjagutta · 24h emergency"},
+    {"id": "hosp_achampet", "name": "Area Hospital Achampet", "category": "hospital", "lat": 16.3880, "lng": 78.7610, "subtitle": "Nearest along NH765"},
+    {"id": "hosp_srisailam", "name": "Government Hospital Srisailam", "category": "hospital", "lat": 16.0788, "lng": 78.8701, "subtitle": "Town centre"},
+    {"id": "pol_cyberabad", "name": "Cyberabad Police Commissionerate", "category": "police", "lat": 17.4442, "lng": 78.3668, "subtitle": "Gachibowli"},
+    {"id": "pol_mannanur", "name": "Forest Check Post Police", "category": "police", "lat": 16.4010, "lng": 78.7920, "subtitle": "Mannanur gate"},
+    {"id": "pol_srisailam", "name": "Srisailam Police Station", "category": "police", "lat": 16.0721, "lng": 78.8715, "subtitle": "Main bazaar"},
+    {"id": "fuel_orrr", "name": "HP Petrol Gachibowli", "category": "fuel", "lat": 17.4350, "lng": 78.3560, "subtitle": "Fill before the forest"},
+    {"id": "fuel_kalwakurthy", "name": "IOCL Kalwakurthy", "category": "fuel", "lat": 16.6650, "lng": 78.4920, "subtitle": "Last reliable pumps"},
+    {"id": "fuel_dornala", "name": "Bharat Petroleum Dornala", "category": "fuel", "lat": 16.1550, "lng": 78.9800, "subtitle": "After the ghat"},
+    {"id": "hotel_mannanur", "name": "Haritha Hotel Mannanur", "category": "hotel", "lat": 16.3980, "lng": 78.7880, "subtitle": "Forest edge"},
+    {"id": "hotel_srisailam", "name": "Punnami Srisailam", "category": "hotel", "lat": 16.0764, "lng": 78.8660, "subtitle": "Viewpoint road"},
+    {"id": "rest_achampet", "name": "Andhra Mess Achampet", "category": "restaurant", "lat": 16.3905, "lng": 78.7588, "subtitle": "Open till 22:00"},
+    {"id": "atm_srisailam", "name": "SBI ATM Srisailam", "category": "atm", "lat": 16.0744, "lng": 78.8690, "subtitle": "Temple approach"},
+    {"id": "rec_mannanur", "name": "Mannanur recovery", "category": "recovery", "lat": 16.3992, "lng": 78.7904, "subtitle": "Stable 4G · check post wifi"},
+    {"id": "rec_atmakur", "name": "Atmakur recovery", "category": "recovery", "lat": 16.3300, "lng": 78.5870, "subtitle": "Town 4G pocket"},
+    {"id": "rec_dornala", "name": "Dornala recovery", "category": "recovery", "lat": 16.1580, "lng": 78.9780, "subtitle": "First strong signal after ghat"},
+    {"id": "rec_srisailam", "name": "Srisailam township recovery", "category": "recovery", "lat": 16.0755, "lng": 78.8688, "subtitle": "Full 4G / 5G patch"},
+    {"id": "weak_nallamala", "name": "Nallamala forest stretch", "category": "blackspot", "lat": 16.2550, "lng": 78.8450, "subtitle": "Estimated 38 min with no usable data"}
+  ],
+  "towers": [
+    {"id": "t1", "name": "Gachibowli macro", "operator": "jio", "tech": "5G", "lat": 17.4420, "lng": 78.3520, "source": "metadata", "detail": "Site ID HYD-JIO-4412 · azimuth 180°"},
+    {"id": "t2", "name": "Gachibowli rooftop", "operator": "airtel", "tech": "5G", "lat": 17.4375, "lng": 78.3440, "source": "metadata", "detail": "eNB 812244"},
+    {"id": "t3", "name": "Kalwakurthy highway", "operator": "jio", "tech": "4G", "lat": 16.6680, "lng": 78.4960, "source": "estimated", "detail": "Coverage modelled from drive tests 2025"},
+    {"id": "t4", "name": "Achampet town", "operator": "bsnl", "tech": "4G", "lat": 16.3920, "lng": 78.7630, "source": "measured", "detail": "Last measured −89 dBm · RSRP"},
+    {"id": "t5", "name": "Mannanur ridge", "operator": "airtel", "tech": "4G", "lat": 16.4040, "lng": 78.7960, "source": "measured", "detail": "Last measured −102 dBm at gate"},
+    {"id": "t6", "name": "Forest mid-ghat", "operator": "vi", "tech": "2G", "lat": 16.2480, "lng": 78.8420, "source": "estimated", "detail": "Voice only · data not expected"},
+    {"id": "t7", "name": "Dornala junction", "operator": "jio", "tech": "4G", "lat": 16.1600, "lng": 78.9820, "source": "measured", "detail": "Last measured −78 dBm"},
+    {"id": "t8", "name": "Srisailam temple hill", "operator": "airtel", "tech": "4G", "lat": 16.0720, "lng": 78.8720, "source": "metadata", "detail": "Shared BTS with BSNL 3G"}
+  ],
+  "blackspots": [
+    {
+      "id": "bs1",
+      "name": "Nallamala inner forest",
+      "lengthKm": 22.4,
+      "durationMin": 38,
+      "warning": "Long isolated stretch. No hospitals for 41 km.",
+      "points": [[16.360, 78.810], [16.360, 78.890], [16.180, 78.900], [16.180, 78.800]]
+    },
+    {
+      "id": "bs2",
+      "name": "Farahabad ghat hairpins",
+      "lengthKm": 7.1,
+      "durationMin": 16,
+      "warning": "Steep drop, limited recovery until Dornala.",
+      "points": [[16.210, 78.860], [16.210, 78.910], [16.145, 78.920], [16.145, 78.855]]
+    }
+  ],
+  "routes": [
+    {
+      "id": "nh765",
+      "name": "NH 765 via Nallamala",
+      "via": "Kalwakurthy · Achampet · Mannanur",
+      "distanceKm": 176,
+      "durationMin": 245,
+      "connectivityScore": 68,
+      "recommended": true,
+      "outlook": "Good until Mannanur, then a 38-minute estimated blackspot before Dornala recovery.",
+      "points": [
+        [17.4401, 78.3489], [17.360, 78.430], [17.180, 78.470], [16.920, 78.500],
+        [16.665, 78.492], [16.520, 78.620], [16.390, 78.760], [16.399, 78.790],
+        [16.300, 78.830], [16.220, 78.850], [16.160, 78.978], [16.0733, 78.8682]
+      ],
+      "segments": [
+        {"label": "Hyderabad – Kalwakurthy", "km": 62, "min": 78, "levels": {"all": "good", "jio": "good", "airtel": "good", "vi": "moderate", "bsnl": "moderate"}},
+        {"label": "Kalwakurthy – Achampet", "km": 41, "min": 52, "levels": {"all": "moderate", "jio": "good", "airtel": "moderate", "vi": "weak", "bsnl": "moderate"}},
+        {"label": "Achampet – Mannanur", "km": 18, "min": 28, "levels": {"all": "moderate", "jio": "moderate", "airtel": "good", "vi": "weak", "bsnl": "moderate"}},
+        {"label": "Mannanur – Dornala forest", "km": 38, "min": 54, "levels": {"all": "none", "jio": "weak", "airtel": "none", "vi": "none", "bsnl": "weak"}},
+        {"label": "Dornala – Srisailam", "km": 17, "min": 33, "levels": {"all": "good", "jio": "good", "airtel": "good", "vi": "moderate", "bsnl": "good"}}
+      ],
+      "stats": {"all": {"good": 45, "moderate": 28, "weak": 8, "none": 19}, "jio": {"good": 52, "moderate": 22, "weak": 18, "none": 8}, "airtel": {"good": 48, "moderate": 24, "weak": 9, "none": 19}, "vi": {"good": 22, "moderate": 31, "weak": 24, "none": 23}, "bsnl": {"good": 30, "moderate": 38, "weak": 24, "none": 8}}
+    },
+    {
+      "id": "sagar",
+      "name": "Via Nagarjuna Sagar",
+      "via": "Ibrahimpatnam · Macherla · Sagar",
+      "distanceKm": 214,
+      "durationMin": 310,
+      "connectivityScore": 74,
+      "recommended": false,
+      "outlook": "Longer drive, fewer total blackspot minutes. Best if you want more recovery towns.",
+      "points": [
+        [17.4401, 78.3489], [17.200, 78.580], [16.900, 78.850], [16.620, 79.000],
+        [16.480, 79.260], [16.350, 79.140], [16.200, 78.980], [16.0733, 78.8682]
+      ],
+      "segments": [
+        {"label": "Hyderabad – Ibrahimpatnam", "km": 48, "min": 70, "levels": {"all": "good", "jio": "good", "airtel": "good", "vi": "good", "bsnl": "moderate"}},
+        {"label": "Ibrahimpatnam – Macherla", "km": 96, "min": 130, "levels": {"all": "moderate", "jio": "good", "airtel": "moderate", "vi": "moderate", "bsnl": "weak"}},
+        {"label": "Sagar hinterland", "km": 40, "min": 62, "levels": {"all": "weak", "jio": "moderate", "airtel": "weak", "vi": "none", "bsnl": "weak"}},
+        {"label": "Approach Srisailam", "km": 30, "min": 48, "levels": {"all": "good", "jio": "good", "airtel": "good", "vi": "moderate", "bsnl": "moderate"}}
+      ],
+      "stats": {"all": {"good": 38, "moderate": 36, "weak": 18, "none": 8}, "jio": {"good": 58, "moderate": 30, "weak": 10, "none": 2}, "airtel": {"good": 40, "moderate": 32, "weak": 20, "none": 8}, "vi": {"good": 28, "moderate": 34, "weak": 16, "none": 22}, "bsnl": {"good": 18, "moderate": 42, "weak": 32, "none": 8}}
+    },
+    {
+      "id": "devarakonda",
+      "name": "Via Devarakonda",
+      "via": "Shadnagar · Devarakonda · Pedda Adiserla Palli",
+      "distanceKm": 198,
+      "durationMin": 280,
+      "connectivityScore": 51,
+      "recommended": false,
+      "outlook": "Saves little time and adds two weak corridors. Avoid if you need data for navigation.",
+      "points": [
+        [17.4401, 78.3489], [17.190, 78.200], [16.900, 78.210], [16.690, 78.130],
+        [16.420, 78.370], [16.250, 78.620], [16.0733, 78.8682]
+      ],
+      "segments": [
+        {"label": "ORR – Shadnagar", "km": 44, "min": 55, "levels": {"all": "good", "jio": "good", "airtel": "good", "vi": "moderate", "bsnl": "moderate"}},
+        {"label": "Devarakonda plateau", "km": 72, "min": 100, "levels": {"all": "weak", "jio": "moderate", "airtel": "weak", "vi": "none", "bsnl": "weak"}},
+        {"label": "Interior connector", "km": 52, "min": 80, "levels": {"all": "none", "jio": "weak", "airtel": "none", "vi": "none", "bsnl": "none"}},
+        {"label": "Final approach", "km": 30, "min": 45, "levels": {"all": "moderate", "jio": "good", "airtel": "moderate", "vi": "weak", "bsnl": "moderate"}}
+      ],
+      "stats": {"all": {"good": 22, "moderate": 20, "weak": 28, "none": 30}, "jio": {"good": 34, "moderate": 28, "weak": 26, "none": 12}, "airtel": {"good": 24, "moderate": 22, "weak": 24, "none": 30}, "vi": {"good": 10, "moderate": 18, "weak": 22, "none": 50}, "bsnl": {"good": 14, "moderate": 26, "weak": 30, "none": 30}}
+    }
+  ],
+  "reports": [
+    {"id": "r1", "lat": 17.438, "lng": 78.350, "level": "good", "operator": "jio", "tech": "5G", "comment": "Solid indoor 5G near Wipro circle.", "minutesAgo": 12, "agreement": 0.92},
+    {"id": "r2", "lat": 16.668, "lng": 78.494, "level": "moderate", "operator": "airtel", "tech": "4G", "comment": "Drops to one bar after the bypass.", "minutesAgo": 40, "agreement": 0.71},
+    {"id": "r3", "lat": 16.398, "lng": 78.791, "level": "good", "operator": "airtel", "tech": "4G", "comment": "Mannanur gate is a reliable recovery.", "minutesAgo": 95, "agreement": 0.88},
+    {"id": "r4", "lat": 16.250, "lng": 78.844, "level": "none", "operator": "jio", "tech": "4G", "comment": "Lost both data and voice for ~35 min.", "minutesAgo": 180, "agreement": 0.81},
+    {"id": "r5", "lat": 16.248, "lng": 78.840, "level": "none", "operator": "vi", "tech": "2G", "comment": "Emergency SMS queued until Dornala.", "minutesAgo": 210, "agreement": 0.76},
+    {"id": "r6", "lat": 16.159, "lng": 78.979, "level": "good", "operator": "jio", "tech": "4G", "comment": "Dornala junction lights up all four operators.", "minutesAgo": 26, "agreement": 0.9},
+    {"id": "r7", "lat": 16.074, "lng": 78.869, "level": "good", "operator": "bsnl", "tech": "4G", "comment": "BSNL surprisingly usable in town.", "minutesAgo": 8, "agreement": 0.64},
+    {"id": "r8", "lat": 16.330, "lng": 78.587, "level": "moderate", "operator": "bsnl", "tech": "3G", "comment": "Atmakur town 3G, no 5G.", "minutesAgo": 400, "agreement": 0.55}
+  ],
+  "alerts": [
+    {"id": "a1", "severity": "high", "title": "38 min Nallamala blackspot", "body": "No usable data from Mannanur gate to Dornala on most operators. Download maps before the gate."},
+    {"id": "a2", "severity": "medium", "title": "Isolated forest road", "body": "NH 765 inside the tiger reserve has no fuel, no hospitals, and limited turnarounds after dusk."},
+    {"id": "a3", "severity": "medium", "title": "Sparse emergency services", "body": "Nearest trauma care after Achampet is Srisailam town — 70+ minutes in poor conditions."}
+  ],
+  "instructions": [
+    "Share your live plan with one preferred contact before Mannanur.",
+    "Keep headlights and a paper note of the SOS numbers — screens fail in heat.",
+    "If you lose signal, stay on the marked highway. Do not enter forest tracks.",
+    "Queued SOS messages send automatically when data returns at Dornala or Srisailam."
+  ],
+  "savedPlaces": [
+    {"id": "gachibowli", "label": "Home · Gachibowli"},
+    {"id": "srisailam", "label": "Srisailam temple"}
+  ]
+}
