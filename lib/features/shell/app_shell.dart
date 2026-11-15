@@ -15,9 +15,9 @@ class AppShell extends StatelessWidget {
     return Scaffold(
       body: shell,
       bottomNavigationBar: NavigationBar(
-        height: 78,
+        height: 80,
         backgroundColor: pal.elevated,
-        indicatorColor: pal.beacon.withValues(alpha: 0.16),
+        indicatorColor: pal.secondaryContainer,
         selectedIndex: shell.currentIndex,
         onDestinationSelected: (index) => shell.goBranch(index),
         destinations: const [

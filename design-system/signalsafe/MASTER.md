@@ -3,58 +3,58 @@
 **Project:** SignalSafe
 **Updated:** 2026-11-15
 **Category:** Travel safety navigation
-**Direction:** Reference-led, light-first travel safety UI with a quiet teal signal accent.
-
----
+**Direction:** Material 3, light-first, with Google Maps-inspired clarity and SignalSafe teal.
 
 ## Global Rules
 
-Make the selected route and its connectivity story easy to read at a glance. Use light, low-noise map chrome and white surfaces; keep signal levels distinct and SOS a protected red control, never the brand color. The night-drive palette remains an optional theme.
+- Keep route connectivity information easy to scan and keep the interface content-first.
+- Use Material 3 surfaces and controls, restrained elevation on floating elements, and 16dp screen margins.
+- Use sentence case, Roboto, and the Material type scale. Do not fetch fonts at runtime.
+- The default is light; the Profile screen provides a dark-theme switch.
+- Keep signal quality distinct from SOS: teal is the brand, green/amber/red convey signal or risk.
+- Preserve the existing OpenStreetMap tile provider and tile styling. UI iterations may update route and marker overlays, not the tile source.
 
-### Default Light Palette
+## Light Theme Roles
 
-| Role | Hex | Token |
-|------|-----|-------|
-| Page background | `#F6F8F7` | `ink` |
-| Surface | `#FFFFFF` | `surface` |
-| Elevated surface | `#EDF3F1` | `elevated` |
-| Text | `#1F2926` | `text` |
-| Muted | `#59645F` | `muted` |
-| Beacon / brand | `#007F70` | `beacon` |
-| Route | `#3E7BCC` | `route` |
-| Signal good | `#16845B` | `signalGood` |
-| Signal moderate | `#A96600` | `signalModerate` |
-| Signal weak | `#C55D00` | `signalWeak` |
-| Signal none | `#68736F` | `signalNone` |
-| SOS | `#B3261E` | `sos` |
-| Border | `#CBD4D1` | `border` |
+| Role | Hex |
+|---|---|
+| Primary | `#00796B` |
+| On primary | `#FFFFFF` |
+| Primary container | `#B2EBE2` |
+| Secondary container | `#CDE8E3` |
+| Surface / background | `#F8FAF9` |
+| Navigation surface | `#EBF0EE` |
+| Highest surface container | `#E4E9E7` |
+| On surface | `#191C1B` |
+| On-surface variant | `#404947` |
+| Outline | `#6F7977` |
+| Outline variant | `#C0C9C6` |
+| Error | `#B3261E` |
+| Error container | `#F9DEDC` |
+| Warning container | `#FFE7B3` |
+| Success container | `#C9F0D5` |
 
-The optional dark theme uses the night-drive palette from the previous design revision.
+The matching dark roles are defined alongside the light roles in `lib/theme/app_theme.dart`.
 
-### Typography
+## Components and Interaction
 
-- **UI:** Outfit (geometric wayfinding)
-- **Data (km, ETA, dBm):** IBM Plex Sans
-- No Inter, no Playfair, no emoji icons
+- Use the Material 3 `NavigationBar` for the five persistent tabs: Map, Trips, Safety, Community, and Profile.
+- Keep minimum touch targets at 48dp. Label icon-only actions with tooltips/semantics.
+- Use outlined list rows and cards for supporting content, with inset dividers where appropriate; reserve elevation for floating controls.
+- Signal quality must include both a signal-bars icon and a text label. Risk severity must include an icon and label.
+- Keep the SOS action red and explicit about its demo behavior. A three-second hold opens confirmation/options; it does not send an SOS or share live location.
+- Describe saved trips as an offline plan, not an offline map download. OSM tiles still require a network connection.
 
-### Spacing
+## Screen Guidance
 
-8dp rhythm. Touch targets 48dp. Safe-area padding on every fixed chrome layer.
+- **Map:** Keep the full-bleed OSM map and existing interactions. Use light route chrome, a white route casing, a distinct amber low-signal segment/callout, and accessible map controls.
+- **Trips:** Lead with saved-place shortcuts and one route preview card. Keep recent searches easy to clear.
+- **Safety:** Make the demo status visible, protect the SOS action from accidental activation, and keep contacts and route alerts scannable.
+- **Community:** Use network filter chips, flat report rows with inset dividers, agreement/status information, and one extended report action.
+- **Profile:** Keep appearance controls prominent, use segmented choices for exclusive preferences, and independent switches for safety preferences.
+- **Active navigation:** Keep turn guidance prominent in a teal banner, preserve an open OSM map as the main canvas, and dock route progress and essential drive/voice actions below it. Show estimated coverage and blackspot/recovery details without obscuring route visibility.
 
-### Motion
+## Quality Bar
 
-180–280ms for HUD sheets. Respect `disableAnimations` / reduced motion.
-
-### Icons
-
-Phosphor, outline at rest, fill for selected tab. Never emoji.
-
-## Non-map Screens
-
-- Trips: surface saved places first, show a compact route preview, and keep recent searches easy to clear.
-- Safety: give SOS a distinct red surface and state demo limitations plainly; never claim live sharing or automatic delivery unless implemented.
-- Community: use readable report rows, compact network filters, and a clear report action.
-- Profile: use full-width segmented choices for mutually exclusive preferences and preserve the optional dark theme.
-- Use explicit labels for signal levels and selected states; never rely on color alone.
-- Give route summaries and primary actions stronger hierarchy than supporting metrics.
-- Keep actions at least 48dp high, preserve safe areas, and allow long content to scroll clear of fixed navigation.
+- Respect system text scaling, safe areas, dark mode, and reduced motion where supported.
+- Keep copy concise, truthful, and action-oriented; avoid implying live coverage, emergency delivery, or downloaded maps when those features are not implemented.

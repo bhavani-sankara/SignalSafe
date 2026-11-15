@@ -22,7 +22,8 @@ class Session {
     required this.selectedRouteId,
     required this.travelMode,
     required this.routePref,
-    required this.safetyPref,
+    required this.avoidLongBlackspots,
+    required this.stayNearServices,
     required this.preferredOperator,
     required this.contacts,
     required this.trips,
@@ -50,7 +51,8 @@ class Session {
   final String selectedRouteId;
   final String travelMode;
   final String routePref;
-  final String safetyPref;
+  final bool avoidLongBlackspots;
+  final bool stayNearServices;
   final String preferredOperator;
   final List<EmergencyContact> contacts;
   final List<SavedTrip> trips;
@@ -81,10 +83,10 @@ class Session {
         return r.connectivityScore * 2 - (r.durationMin ~/ 10);
       }
       var s = r.connectivityScore;
-      if (safetyPref == 'avoidBlackspots') {
+      if (avoidLongBlackspots) {
         s -= r.stats[operatorFilter]?['none'] ?? r.stats['all']!['none']!;
       }
-      if (safetyPref == 'nearServices') s += 4;
+      if (stayNearServices) s += 4;
       return s;
     }
 
@@ -108,7 +110,8 @@ class Session {
     String? selectedRouteId,
     String? travelMode,
     String? routePref,
-    String? safetyPref,
+    bool? avoidLongBlackspots,
+    bool? stayNearServices,
     String? preferredOperator,
     List<EmergencyContact>? contacts,
     List<SavedTrip>? trips,
@@ -136,7 +139,8 @@ class Session {
       selectedRouteId: selectedRouteId ?? this.selectedRouteId,
       travelMode: travelMode ?? this.travelMode,
       routePref: routePref ?? this.routePref,
-      safetyPref: safetyPref ?? this.safetyPref,
+      avoidLongBlackspots: avoidLongBlackspots ?? this.avoidLongBlackspots,
+      stayNearServices: stayNearServices ?? this.stayNearServices,
       preferredOperator: preferredOperator ?? this.preferredOperator,
       contacts: contacts ?? this.contacts,
       trips: trips ?? this.trips,
@@ -172,7 +176,8 @@ class SessionController extends Notifier<Session?> {
         selectedRouteId: 'nh765',
         travelMode: 'car',
         routePref: 'connectivity',
-        safetyPref: 'avoidBlackspots',
+        avoidLongBlackspots: true,
+        stayNearServices: false,
         preferredOperator: c.preferredOperator,
         contacts: [
           EmergencyContact(

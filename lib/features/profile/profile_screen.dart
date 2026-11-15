@@ -24,7 +24,7 @@ class ProfileScreen extends ConsumerWidget {
                 Row(
                   children: [
                     CircleAvatar(
-                      radius: 36,
+                      radius: 32,
                       backgroundColor: context.palette.beacon,
                       child: Text(
                         session.userName.isEmpty ? 'S' : session.userName[0],
@@ -42,7 +42,7 @@ class ProfileScreen extends ConsumerWidget {
                         children: [
                           Text(
                             session.userName,
-                            style: Theme.of(context).textTheme.headlineSmall
+                            style: Theme.of(context).textTheme.titleLarge
                                 ?.copyWith(fontWeight: FontWeight.w500),
                           ),
                           Text(
@@ -65,6 +65,20 @@ class ProfileScreen extends ConsumerWidget {
                       ),
                     ),
                   ],
+                ),
+                const SizedBox(height: 16),
+                const SectionHeading('Appearance'),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  secondary: const Icon(PhosphorIconsRegular.moon),
+                  title: const Text('Dark theme'),
+                  subtitle: const Text(
+                    'Use a darker palette for night travel.',
+                  ),
+                  value: session.darkMode,
+                  onChanged: (value) => ref
+                      .read(sessionProvider.notifier)
+                      .update((state) => state.copyWith(darkMode: value)),
                 ),
                 const SizedBox(height: 24),
                 const SectionHeading(
@@ -110,14 +124,25 @@ class ProfileScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: 16),
                 const SectionLabel('Safety'),
-                _segments(
-                  context,
-                  const ['avoidBlackspots', 'nearServices'],
-                  const ['Avoid long blackspots', 'Stay near services'],
-                  session.safetyPref,
-                  (value) => ref
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Avoid long blackspots'),
+                  subtitle: const Text('Prefer routes with fewer signal gaps.'),
+                  value: session.avoidLongBlackspots,
+                  onChanged: (value) => ref
                       .read(sessionProvider.notifier)
-                      .update((s) => s.copyWith(safetyPref: value)),
+                      .update((s) => s.copyWith(avoidLongBlackspots: value)),
+                ),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Stay near services'),
+                  subtitle: const Text(
+                    'Prefer routes with fuel and hospitals.',
+                  ),
+                  value: session.stayNearServices,
+                  onChanged: (value) => ref
+                      .read(sessionProvider.notifier)
+                      .update((s) => s.copyWith(stayNearServices: value)),
                 ),
                 const SizedBox(height: 28),
                 const SectionHeading('Saved places'),
@@ -173,16 +198,6 @@ class ProfileScreen extends ConsumerWidget {
                   (v) => session.notify.copyWith(safety: v),
                 ),
                 const SizedBox(height: 12),
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  secondary: const Icon(PhosphorIconsRegular.moon),
-                  title: const Text('Dark theme'),
-                  subtitle: const Text('Switch to the night-drive palette.'),
-                  value: session.darkMode,
-                  onChanged: (v) => ref
-                      .read(sessionProvider.notifier)
-                      .update((s) => s.copyWith(darkMode: v)),
-                ),
               ],
             ),
           ),
@@ -211,13 +226,22 @@ class ProfileScreen extends ConsumerWidget {
         onSelectionChanged: (selection) => onChanged(selection.first),
         style: ButtonStyle(
           minimumSize: const WidgetStatePropertyAll(Size(0, 48)),
-          foregroundColor: WidgetStatePropertyAll(pal.text),
+          foregroundColor: WidgetStateProperty.resolveWith((states) {
+            return states.contains(WidgetState.selected)
+                ? pal.onSecondaryContainer
+                : pal.muted;
+          }),
           backgroundColor: WidgetStateProperty.resolveWith((states) {
             return states.contains(WidgetState.selected)
-                ? pal.beacon.withValues(alpha: 0.16)
-                : pal.ink;
+                ? pal.secondaryContainer
+                : pal.surface;
           }),
           side: WidgetStatePropertyAll(BorderSide(color: pal.border)),
+          shape: const WidgetStatePropertyAll(
+            RoundedRectangleBorder(
+              borderRadius: BorderRadius.all(Radius.circular(8)),
+            ),
+          ),
         ),
       ),
     );

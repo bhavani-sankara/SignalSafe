@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:phosphor_icons/phosphor_icons.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -23,33 +26,20 @@ class SafetyScreen extends ConsumerWidget {
           appBar: AppBar(
             title: const Text('Safety'),
             actions: [
-              Container(
-                margin: const EdgeInsets.only(right: 16),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  color: pal.moderate.withValues(alpha: 0.14),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      PhosphorIconsFill.circle,
-                      size: 9,
-                      color: pal.moderate,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      'Demo mode',
-                      style: TextStyle(
-                        color: pal.text,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 13,
-                      ),
-                    ),
-                  ],
+              Padding(
+                padding: const EdgeInsets.only(right: 12),
+                child: Chip(
+                  avatar: Icon(
+                    PhosphorIconsFill.circle,
+                    size: 10,
+                    color: pal.onWarningContainer,
+                  ),
+                  label: Text(
+                    'Demo mode',
+                    style: TextStyle(color: pal.onWarningContainer),
+                  ),
+                  backgroundColor: pal.warningContainer,
+                  side: BorderSide.none,
                 ),
               ),
             ],
@@ -58,67 +48,65 @@ class SafetyScreen extends ConsumerWidget {
             child: ListView(
               padding: const EdgeInsets.fromLTRB(20, 8, 20, 112),
               children: [
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: pal.sos.withValues(alpha: 0.09),
-                    borderRadius: BorderRadius.circular(26),
+                Card(
+                  margin: EdgeInsets.zero,
+                  color: pal.errorContainer,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(24),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          CircleAvatar(
-                            radius: 25,
-                            backgroundColor: pal.sos,
-                            child: const Icon(
-                              PhosphorIconsFill.siren,
-                              color: Colors.white,
-                              size: 24,
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            CircleAvatar(
+                              radius: 25,
+                              backgroundColor: pal.sos,
+                              child: const Icon(
+                                PhosphorIconsFill.siren,
+                                color: Colors.white,
+                                size: 24,
+                              ),
                             ),
-                          ),
-                          const SizedBox(width: 14),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Emergency SOS',
-                                  style: Theme.of(context).textTheme.titleLarge
-                                      ?.copyWith(
-                                        color: pal.sos,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  'Call a contact when you have service. '
-                                  'This demo does not share live location or '
-                                  'send messages.',
-                                  style: TextStyle(
-                                    color: pal.text,
-                                    height: 1.4,
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Emergency SOS',
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .titleLarge
+                                        ?.copyWith(
+                                          color: pal.sos,
+                                          fontWeight: FontWeight.w600,
+                                        ),
                                   ),
-                                ),
-                              ],
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Call a contact when you have service. '
+                                    'This demo does not share live location or '
+                                    'send messages.',
+                                    style: TextStyle(
+                                      color: pal.onErrorContainer,
+                                      height: 1.4,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                       const SizedBox(height: 16),
-                      SizedBox(
-                        width: double.infinity,
-                        child: FilledButton.icon(
-                          style: FilledButton.styleFrom(
-                            backgroundColor: pal.sos,
-                            foregroundColor: Colors.white,
-                            minimumSize: const Size.fromHeight(52),
-                          ),
-                          onPressed: () => _sos(context, ref, session, stamp),
-                          icon: const Icon(PhosphorIconsFill.siren),
-                          label: const Text('Emergency SOS'),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                        child: _HoldSosButton(
+                          onActivate: () => _sos(context, ref, session, stamp),
                         ),
                       ),
                     ],
@@ -158,9 +146,9 @@ class SafetyScreen extends ConsumerWidget {
                 ),
                 for (final contact in session.contacts)
                   ListTile(
-                    contentPadding: const EdgeInsets.symmetric(vertical: 4),
+                    contentPadding: const EdgeInsets.symmetric(vertical: 2),
                     leading: CircleAvatar(
-                      radius: 25,
+                      radius: 20,
                       backgroundColor: contact.preferred
                           ? pal.beacon.withValues(alpha: 0.18)
                           : pal.elevated,
@@ -308,60 +296,49 @@ class SafetyScreen extends ConsumerWidget {
 
   Widget _alert(BuildContext context, SafetyAlert alert) {
     final pal = context.palette;
-    final color = alert.severity == 'high' ? pal.sos : pal.moderate;
+    final isHighRisk = alert.severity == 'high';
+    final background = isHighRisk ? pal.errorContainer : pal.warningContainer;
+    final foreground = isHighRisk
+        ? pal.onErrorContainer
+        : pal.onWarningContainer;
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(22),
-          border: Border.all(color: color.withValues(alpha: 0.28)),
+      child: Card(
+        margin: EdgeInsets.zero,
+        color: pal.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(color: pal.border),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.14),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        PhosphorIconsRegular.warning,
-                        color: color,
-                        size: 17,
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        alert.severity == 'high' ? 'High risk' : 'Caution',
-                        style: TextStyle(
-                          color: pal.text,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Chip(
+                avatar: Icon(
+                  PhosphorIconsRegular.warning,
+                  color: foreground,
+                  size: 18,
                 ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Text(
-              alert.title,
-              style: Theme.of(context).textTheme.titleMedium
-                  ?.copyWith(fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 6),
-            Text(alert.body, style: TextStyle(color: pal.muted, height: 1.4)),
-          ],
+                label: Text(isHighRisk ? 'High risk' : 'Caution'),
+                backgroundColor: background,
+                side: BorderSide.none,
+                labelStyle: TextStyle(
+                  color: foreground,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                alert.title,
+                style: Theme.of(context).textTheme.titleMedium
+                    ?.copyWith(fontWeight: FontWeight.w500),
+              ),
+              const SizedBox(height: 4),
+              Text(alert.body, style: TextStyle(color: pal.muted, height: 1.4)),
+            ],
+          ),
         ),
       ),
     );
@@ -664,4 +641,116 @@ String _initials(String name) {
   if (parts.length == 1) return parts.first.substring(0, 1).toUpperCase();
   return '${parts.first.substring(0, 1)}${parts.last.substring(0, 1)}'
       .toUpperCase();
+}
+
+class _HoldSosButton extends StatefulWidget {
+  const _HoldSosButton({required this.onActivate});
+
+  final VoidCallback onActivate;
+
+  @override
+  State<_HoldSosButton> createState() => _HoldSosButtonState();
+}
+
+class _HoldSosButtonState extends State<_HoldSosButton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _progress;
+  Timer? _holdTimer;
+  bool _activated = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _progress = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 3),
+    );
+  }
+
+  void _startHold() {
+    _holdTimer?.cancel();
+    _activated = false;
+    unawaited(HapticFeedback.selectionClick());
+    _progress.forward(from: 0);
+    _holdTimer = Timer(const Duration(seconds: 3), () {
+      if (!mounted) return;
+      _activated = true;
+      unawaited(HapticFeedback.mediumImpact());
+      widget.onActivate();
+      _progress.reverse();
+    });
+  }
+
+  void _cancelHold() {
+    _holdTimer?.cancel();
+    if (!_activated) _progress.reverse();
+  }
+
+  @override
+  void dispose() {
+    _holdTimer?.cancel();
+    _progress.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final pal = context.palette;
+    return Semantics(
+      button: true,
+      label: 'Emergency SOS',
+      hint: 'Press and hold for three seconds to open SOS options.',
+      onTap: widget.onActivate,
+      child: ExcludeSemantics(
+        child: Listener(
+          behavior: HitTestBehavior.opaque,
+          onPointerDown: (_) => _startHold(),
+          onPointerUp: (_) => _cancelHold(),
+          onPointerCancel: (_) => _cancelHold(),
+          child: Material(
+            color: pal.sos,
+            shape: const StadiumBorder(),
+            clipBehavior: Clip.antiAlias,
+            child: SizedBox(
+              height: 52,
+              width: double.infinity,
+              child: AnimatedBuilder(
+                animation: _progress,
+                builder: (context, child) => Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: FractionallySizedBox(
+                        widthFactor: _progress.value,
+                        heightFactor: 1,
+                        child: ColoredBox(
+                          color: Colors.white.withValues(alpha: 0.22),
+                        ),
+                      ),
+                    ),
+                    child!,
+                  ],
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(PhosphorIconsFill.siren, color: Colors.white),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Press and hold for SOS options',
+                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }

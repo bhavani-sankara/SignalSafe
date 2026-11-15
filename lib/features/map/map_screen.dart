@@ -98,18 +98,32 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                 child: Column(
                   children: [
                     RoundIconButton(
-                      icon: PhosphorIconsRegular.crosshair,
-                      tooltip: 'Recenter',
-                      onTap: () => _map.move(session.here, 13),
-                    ),
-                    const SizedBox(height: 10),
-                    RoundIconButton(
                       icon: PhosphorIconsRegular.stack,
                       tooltip: 'Map layers',
-                      selected: session.overlayOn,
                       onTap: () => _layers(context, session),
                     ),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 8),
+                    RoundIconButton(
+                      icon: PhosphorIconsRegular.wifiHigh,
+                      tooltip: session.overlayOn
+                          ? 'Hide signal overlay'
+                          : 'Show signal overlay',
+                      selected: session.overlayOn,
+                      onTap: () => ref
+                          .read(sessionProvider.notifier)
+                          .update((s) => s.copyWith(overlayOn: !s.overlayOn)),
+                    ),
+                    const SizedBox(height: 8),
+                    FloatingActionButton(
+                      heroTag: 'map-my-location',
+                      tooltip: 'My location',
+                      backgroundColor: pal.surface,
+                      foregroundColor: pal.beacon,
+                      elevation: 2,
+                      onPressed: () => _map.move(session.here, 13),
+                      child: const Icon(PhosphorIconsRegular.crosshair),
+                    ),
+                    const SizedBox(height: 8),
                     RoundIconButton(
                       icon: PhosphorIconsRegular.broadcast,
                       tooltip: 'Network operator',
@@ -143,25 +157,36 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             color: pal.muted.withValues(alpha: 0.55),
             strokeWidth: 4,
           ),
-      for (var i = 0; i < slices.length; i++)
+      for (var i = 0; i < slices.length; i++) ...[
+        Polyline(points: slices[i], color: Colors.white, strokeWidth: 11),
         Polyline(
           points: slices[i],
-          color: route.segments[i].levelFor(session.operatorFilter) == 'none'
+          color:
+              _isLowSignal(route.segments[i].levelFor(session.operatorFilter))
               ? pal.moderate
-              : pal.level(route.segments[i].levelFor(session.operatorFilter)),
+              : pal.route,
           strokeWidth: 7,
-          pattern: route.segments[i].levelFor(session.operatorFilter) == 'none'
+          pattern:
+              _isLowSignal(route.segments[i].levelFor(session.operatorFilter))
               ? const StrokePattern.dotted()
               : const StrokePattern.solid(),
         ),
+      ],
     ];
   }
+
+  bool _isLowSignal(String level) => level == 'none' || level == 'weak';
 
   List<Marker> _markers(
     BuildContext context,
     Session session,
     SignalPalette pal,
   ) {
+    final route = session.route;
+    final slices = splitByWeight(
+      route.points,
+      route.segments.map((segment) => segment.km).toList(),
+    );
     final markers = <Marker>[
       _pin(
         session.here,
@@ -170,14 +195,53 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         semanticLabel: 'Current location, ${session.origin.name}',
         onTap: () => _placeSheet(context, session.origin),
       ),
-      _pin(
-        session.destination.point,
-        pal.route,
-        PhosphorIconsFill.mapPin,
-        semanticLabel: 'Destination, ${session.destination.name}',
-        onTap: () => _placeSheet(context, session.destination),
-      ),
+      _destinationPin(context, session, pal),
     ];
+    final firstGap = route.segments.indexWhere(
+      (segment) => _isLowSignal(segment.levelFor(session.operatorFilter)),
+    );
+    if (firstGap >= 0 && slices[firstGap].isNotEmpty) {
+      final segment = route.segments[firstGap];
+      final noSignal = segment.levelFor(session.operatorFilter) == 'none';
+      markers.add(
+        Marker(
+          point: slices[firstGap][slices[firstGap].length ~/ 2],
+          width: 148,
+          height: 40,
+          alignment: Alignment.centerLeft,
+          child: Semantics(
+            label:
+                '${segment.min} minute ${noSignal ? 'no-signal' : 'weak-signal'} section',
+            child: Material(
+              color: pal.surface,
+              elevation: 2,
+              borderRadius: BorderRadius.circular(8),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 8,
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      PhosphorIconsRegular.wifiSlash,
+                      size: 16,
+                      color: pal.moderate,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      '${segment.min} min ${noSignal ? 'no signal' : 'weak signal'}',
+                      style: Theme.of(context).textTheme.labelMedium,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
     if (_towers) {
       for (final tower in session.catalog.towers) {
         if (session.operatorFilter != 'all' &&
@@ -212,10 +276,17 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         markers.add(
           _pin(
             place.point,
-            _categoryColor(place.category, pal),
-            categoryIcon(place.category),
+            place.category == 'hospital'
+                ? pal.sos
+                : _categoryColor(place.category, pal),
+            place.category == 'hospital'
+                ? PhosphorIconsRegular.plus
+                : categoryIcon(place.category),
             semanticLabel: place.name,
             onTap: () => _placeSheet(context, place),
+            iconColor: place.category == 'hospital'
+                ? Colors.white
+                : pal.onPrimaryContainer,
           ),
         );
       }
@@ -249,12 +320,40 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     return markers;
   }
 
+  Marker _destinationPin(
+    BuildContext context,
+    Session session,
+    SignalPalette pal,
+  ) {
+    return Marker(
+      point: session.destination.point,
+      width: 48,
+      height: 56,
+      child: Semantics(
+        button: true,
+        label: 'Destination, ${session.destination.name}',
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () => _placeSheet(context, session.destination),
+          child: Center(
+            child: Icon(
+              PhosphorIconsFill.mapPin,
+              size: 42,
+              color: pal.destination,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Marker _pin(
     LatLng point,
     Color color,
     IconData icon, {
     required String semanticLabel,
     VoidCallback? onTap,
+    Color? iconColor,
   }) {
     return Marker(
       point: point,
@@ -275,7 +374,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                 shape: BoxShape.circle,
                 border: Border.all(color: Colors.white, width: 2),
               ),
-              child: Icon(icon, size: 15, color: const Color(0xFF06201C)),
+              child: Icon(icon, size: 15, color: iconColor ?? Colors.white),
             ),
           ),
         ),
@@ -287,35 +386,43 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     final pal = context.palette;
     return Material(
       color: pal.surface,
-      elevation: 3,
+      elevation: 2,
       shadowColor: Colors.black.withValues(alpha: 0.12),
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(16),
       clipBehavior: Clip.antiAlias,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(12, 8, 6, 8),
         child: Row(
           children: [
             Expanded(
-              child: Column(
+              child: Stack(
                 children: [
-                  _routeStop(
-                    context,
-                    icon: PhosphorIconsRegular.navigationArrow,
-                    color: pal.beacon,
-                    name: session.origin.name,
-                    onTap: () => context.push('/search?mode=origin'),
+                  const Positioned(
+                    left: 10,
+                    top: 30,
+                    bottom: 30,
+                    child: CustomPaint(
+                      painter: _DottedConnectorPainter(),
+                      size: Size(2, 36),
+                    ),
                   ),
-                  Divider(
-                    height: 1,
-                    indent: 32,
-                    color: pal.border.withValues(alpha: 0.8),
-                  ),
-                  _routeStop(
-                    context,
-                    icon: PhosphorIconsRegular.mapPinLine,
-                    color: pal.sos,
-                    name: session.destination.name,
-                    onTap: () => context.push('/search?mode=destination'),
+                  Column(
+                    children: [
+                      _routeStop(
+                        context,
+                        icon: PhosphorIconsRegular.navigationArrow,
+                        color: pal.beacon,
+                        name: session.origin.name,
+                        onTap: () => context.push('/search?mode=origin'),
+                      ),
+                      _routeStop(
+                        context,
+                        icon: PhosphorIconsFill.mapPin,
+                        color: pal.destination,
+                        name: session.destination.name,
+                        onTap: () => context.push('/search?mode=destination'),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -353,7 +460,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       child: InkWell(
         onTap: onTap,
         child: SizedBox(
-          height: 42,
+          height: 48,
           child: Row(
             children: [
               Icon(icon, size: 20, color: color),
@@ -439,6 +546,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     final lowSignalEnd = lowSignalSegments.isEmpty
         ? null
         : lowSignalSegments.last.label.split(' – ').last;
+    final heroColor = lowSignalSegments.isEmpty ? pal.beacon : pal.moderate;
     return SafeArea(
       bottom: false,
       child: Padding(
@@ -479,7 +587,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                         Text(
                           '${route.durationMin ~/ 60} h ${route.durationMin % 60} min',
                           style: TextStyle(
-                            color: pal.beacon,
+                            color: heroColor,
                             fontSize: 30,
                             fontWeight: FontWeight.w700,
                             height: 1.1,
@@ -874,3 +982,18 @@ Color _opColor(String operator) => switch (operator) {
   'bsnl' => const Color(0xFFD6A100),
   _ => const Color(0xFF6BA8FF),
 };
+
+class _DottedConnectorPainter extends CustomPainter {
+  const _DottedConnectorPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..color = const Color(0xFF6F7977);
+    for (var y = 0.0; y < size.height; y += 6) {
+      canvas.drawCircle(Offset(size.width / 2, y + 1), 1.2, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_DottedConnectorPainter oldDelegate) => false;
+}

@@ -18,7 +18,7 @@ The app has a working Flutter demo covering:
 - Safety contacts, emergency-message confirmation, and an in-app queued SOS state during simulated signal loss.
 - Community reporting, profile preferences, and light/dark themes.
 
-The design system is reflected in the dark palette, Outfit/IBM Plex Sans typography, Phosphor icons, 48dp icon controls, map HUD components, and red SOS treatment.
+The interface uses Phosphor icons, touch-sized controls, map HUD components, and a distinct red SOS treatment. The design system and typography were updated again in the Material 3 iteration below.
 
 ## Design review
 
@@ -55,17 +55,43 @@ The supplied light mobile references now guide the default appearance:
 
 Browser review covered the Map, Trips, Safety, Community, and Profile references. The route preview, light palette, and section layouts rendered as intended; longer pages remain scrollable.
 
+### Material 3 iteration
+
+The latest pass aligns the app with the supplied Material 3 / Google Maps-style reference while retaining the existing features, five tabs, and OpenStreetMap tile source:
+
+- Centralized light and dark Material 3 color roles, switched UI typography to Roboto, and removed runtime Google Fonts configuration.
+- Added a prominent Dark theme switch in Profile and changed route-safety settings to independent switches for avoiding long blackspots and staying near services.
+- Refined shared surfaces, navigation, chips, segmented choices, route previews, contact rows, alert cards, and Community report rows.
+- Updated Map route/callout/control chrome only; the OSM tile provider remains unchanged.
+- Added a cancellable three-second SOS hold with progress and haptic feedback. Completion opens the existing demo-safe options; screen-reader activation also opens those options. No SMS or live location is sent.
+- Kept saved-trip messaging honest: “Offline plan · demo” does not claim that map tiles have been downloaded.
+
+Browser review covered Map, Trips, Safety, Community, and Profile at a phone-sized viewport. The OSM tiles were unavailable during this preview, so visual review of tile rendering was limited to the route and marker overlays. The Trips metadata now uses plain-language “to” wording for compatibility with the Flutter web font fallback.
+
+### Active navigation reference pass
+
+The active-navigation screen was reshaped around the supplied navigation reference:
+
+- Added a prominent teal next-turn banner with a concise “Then” instruction.
+- Made the route map the primary canvas, with an estimated signal summary, upcoming blackspot/recovery details, and floating speed, zoom, and full-route controls.
+- Replaced the previous navigation footer with a docked route summary and persistent Drive/Pause, voice, and additional-options actions.
+- Preserved route progress, voice guidance, route-change demo, signal simulation, and the OpenStreetMap tile source.
+- Made End navigation return to the prior screen or fall back to Map when navigation is opened directly.
+- Added a focused portrait widget test for navigation guidance, expanded connectivity details, and Drive/Pause interaction.
+
+The refreshed screen rendered in the phone-sized browser preview after reloading the running Flutter web app. A landscape browser resize showed a blank preview, and a landscape widget-test attempt stalled in the test harness; landscape rendering remains unverified.
+
 ## Verification
 
-- `flutter analyze` — passed with no issues after the reference-led refresh.
-- `flutter test` — passed (5 tests), covering Community flag readability, report actions, Safety demo disclosures, catalog parsing, and duplicate saved/offline journeys.
-- `git diff --check` — passed.
+- `flutter analyze` — passed with no issues after the active-navigation pass.
+- `flutter test` — passed (7 tests), including navigation, held-SOS confirmation, and Profile theme/preference controls.
+- `git diff --check` — passed after formatting the navigation files.
 
 ## Remaining gaps
 
 These are observations, not tasks from an existing plan:
 
-- The optional dark theme has not had a fresh device-level contrast review after the light-first refresh.
+- The optional dark theme has not had a fresh device-level contrast review; browser review covered the light theme.
 - No explicit reduced-motion preference handling was found in the app code.
 - The project is currently a demo: connectivity and reports use mock data, signal loss is simulated, and SOS handling does not send an SMS or notify multiple contacts. Map tiles come from the network, so offline map downloads are not implemented.
 - `README.md` still describes a generic Flutter starter rather than SignalSafe.

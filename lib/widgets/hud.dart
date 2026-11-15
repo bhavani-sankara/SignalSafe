@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:phosphor_icons/phosphor_icons.dart';
 
 import '../theme/app_theme.dart';
@@ -26,7 +25,7 @@ class Glass extends StatelessWidget {
     super.key,
     required this.child,
     this.padding = const EdgeInsets.all(14),
-    this.radius = 18,
+    this.radius = 16,
     this.color,
   });
 
@@ -38,25 +37,14 @@ class Glass extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final pal = context.palette;
-    return Container(
-      padding: padding,
-      decoration: BoxDecoration(
-        color: color ?? pal.glass,
+    return Material(
+      color: color ?? pal.surface,
+      shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(radius),
-        border: Border.all(color: pal.border.withValues(alpha: 0.85)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(
-              alpha: Theme.of(context).brightness == Brightness.dark
-                  ? 0.18
-                  : 0.07,
-            ),
-            blurRadius: 16,
-            offset: const Offset(0, 5),
-          ),
-        ],
+        side: BorderSide(color: pal.border),
       ),
-      child: Material(type: MaterialType.transparency, child: child),
+      clipBehavior: Clip.antiAlias,
+      child: Padding(padding: padding, child: child),
     );
   }
 }
@@ -90,7 +78,10 @@ class _RoutePreviewPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final dark = palette == SignalPalette.dark;
     final bounds = Offset.zero & size;
-    canvas.drawRect(bounds, Paint()..color = const Color(0xFFF1EFE9));
+    canvas.drawRect(
+      bounds,
+      Paint()..color = dark ? palette.ink : const Color(0xFFF2EFE9),
+    );
 
     final park = Path()
       ..moveTo(size.width * 0.48, size.height * 0.26)
@@ -98,7 +89,10 @@ class _RoutePreviewPainter extends CustomPainter {
       ..lineTo(size.width * 0.91, size.height * 0.88)
       ..lineTo(size.width * 0.43, size.height * 0.92)
       ..close();
-    canvas.drawPath(park, Paint()..color = const Color(0xFFC9E8D0));
+    canvas.drawPath(
+      park,
+      Paint()..color = dark ? palette.elevated : const Color(0xFFCBE7CF),
+    );
 
     final roadPaint = Paint()
       ..color = Colors.white
@@ -138,8 +132,14 @@ class _RoutePreviewPainter extends CustomPainter {
         size.width * 0.83,
         size.height * 0.58,
       );
+    final routeCasing = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 11
+      ..strokeCap = StrokeCap.round;
+    canvas.drawPath(route, routeCasing);
     final routePaint = Paint()
-      ..color = palette.beacon
+      ..color = palette.route
       ..style = PaintingStyle.stroke
       ..strokeWidth = 6
       ..strokeCap = StrokeCap.round;
@@ -173,7 +173,7 @@ class _RoutePreviewPainter extends CustomPainter {
         ..strokeWidth = 4,
     );
     final destination = Offset(size.width * 0.83, size.height * 0.58);
-    canvas.drawCircle(destination, 13, Paint()..color = palette.sos);
+    canvas.drawCircle(destination, 13, Paint()..color = palette.destination);
     canvas.drawCircle(destination, 5, Paint()..color = Colors.white);
 
     if (dark) {
@@ -205,6 +205,8 @@ class SignalChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final pal = context.palette;
     final color = pal.level(level);
+    final foreground = pal.onLevelContainer(level);
+    final background = pal.levelContainer(level);
     final text =
         label ??
         switch (level) {
@@ -219,9 +221,9 @@ class SignalChip extends StatelessWidget {
         vertical: compact ? 4 : 6,
       ),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.16),
+        color: background,
         borderRadius: BorderRadius.circular(99),
-        border: Border.all(color: color.withValues(alpha: 0.5)),
+        border: Border.all(color: background),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -234,13 +236,54 @@ class SignalChip extends StatelessWidget {
           const SizedBox(width: 6),
           Text(
             text,
-            style: GoogleFonts.ibmPlexSans(
+            style: TextStyle(
               fontSize: compact ? 11 : 12,
               fontWeight: FontWeight.w600,
-              color: pal.text,
+              color: foreground,
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class SignalBars extends StatelessWidget {
+  const SignalBars({super.key, required this.level});
+
+  final String level;
+
+  @override
+  Widget build(BuildContext context) {
+    final pal = context.palette;
+    final activeBars = switch (level) {
+      'good' => 4,
+      'moderate' => 3,
+      'weak' => 2,
+      _ => 1,
+    };
+    const heights = [6.0, 10.0, 14.0, 18.0];
+    return ExcludeSemantics(
+      child: SizedBox(
+        width: 24,
+        height: 24,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            for (var i = 0; i < heights.length; i++) ...[
+              if (i > 0) const SizedBox(width: 2),
+              Container(
+                width: 3,
+                height: heights[i],
+                decoration: BoxDecoration(
+                  color: i < activeBars ? pal.level(level) : pal.border,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
@@ -261,7 +304,7 @@ class SourceTag extends StatelessWidget {
     };
     return Text(
       label,
-      style: GoogleFonts.ibmPlexSans(
+      style: TextStyle(
         fontSize: 11,
         letterSpacing: 0.2,
         color: pal.muted,
@@ -293,10 +336,10 @@ class RoundIconButton extends StatelessWidget {
     final bg = sos
         ? pal.sos
         : selected
-        ? pal.beacon
-        : pal.glass;
+        ? pal.secondaryContainer
+        : pal.surface;
     final fg = sos || selected
-        ? (sos ? Colors.white : const Color(0xFF06201C))
+        ? (sos ? Colors.white : pal.onSecondaryContainer)
         : pal.text;
     return Tooltip(
       message: tooltip ?? '',
@@ -304,11 +347,13 @@ class RoundIconButton extends StatelessWidget {
         color: bg,
         elevation: selected || sos ? 0 : 2,
         shadowColor: Colors.black.withValues(alpha: 0.14),
-        shape: const CircleBorder(),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: onTap,
-          customBorder: const CircleBorder(),
+          customBorder: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
           child: SizedBox(
             width: 48,
             height: 48,
@@ -330,10 +375,10 @@ class SectionLabel extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 8, top: 4),
       child: Text(
         text,
-        style: GoogleFonts.outfit(
-          fontSize: 13,
-          fontWeight: FontWeight.w600,
-          color: context.palette.muted,
+        style: Theme.of(context).textTheme.labelLarge?.copyWith(
+          fontSize: 14,
+          fontWeight: FontWeight.w500,
+          color: context.palette.beacon,
         ),
       ),
     );
@@ -355,9 +400,10 @@ class SectionHeading extends StatelessWidget {
         children: [
           Text(
             text,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+            style: Theme.of(context).textTheme.labelLarge?.copyWith(
+              fontSize: 14,
               color: context.palette.beacon,
-              fontWeight: FontWeight.w600,
+              fontWeight: FontWeight.w500,
             ),
           ),
           if (subtitle != null) ...[

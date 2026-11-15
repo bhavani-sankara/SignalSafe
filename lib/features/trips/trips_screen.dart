@@ -224,17 +224,17 @@ class TripsScreen extends ConsumerWidget {
       padding: const EdgeInsets.only(bottom: 12),
       child: Material(
         color: pal.surface,
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(16),
         clipBehavior: Clip.antiAlias,
         child: DecoratedBox(
           decoration: BoxDecoration(
             border: Border.all(color: pal.border),
-            borderRadius: BorderRadius.circular(22),
+            borderRadius: BorderRadius.circular(16),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const RoutePreview(height: 124),
+              const RoutePreview(height: 120),
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
                 child: Column(
@@ -244,12 +244,12 @@ class TripsScreen extends ConsumerWidget {
                       trip.name,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.titleLarge
+                      style: Theme.of(context).textTheme.titleMedium
                           ?.copyWith(fontWeight: FontWeight.w500),
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '${origin.name.split(',').first} → ${destination.name} · '
+                      '${origin.name.split(',').first} to ${destination.name} · '
                       '${route.distanceKm.toStringAsFixed(0)} km · '
                       '${formatDuration(route.durationMin)}',
                       maxLines: 1,
@@ -265,32 +265,18 @@ class TripsScreen extends ConsumerWidget {
                         if (trip.offlinePrepared)
                           Tooltip(
                             message: 'This saved plan does not include downloaded map tiles.',
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 8,
+                            child: Chip(
+                              avatar: Icon(
+                                PhosphorIconsRegular.check,
+                                size: 18,
+                                color: pal.onSuccessContainer,
                               ),
-                              decoration: BoxDecoration(
-                                color: pal.good.withValues(alpha: 0.16),
-                                borderRadius: BorderRadius.circular(14),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    PhosphorIconsRegular.check,
-                                    color: pal.good,
-                                    size: 18,
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    'Offline plan · demo',
-                                    style: TextStyle(
-                                      color: pal.text,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ],
+                              label: const Text('Offline plan · demo'),
+                              backgroundColor: pal.successContainer,
+                              side: BorderSide.none,
+                              labelStyle: TextStyle(
+                                color: pal.onSuccessContainer,
+                                fontWeight: FontWeight.w500,
                               ),
                             ),
                           ),

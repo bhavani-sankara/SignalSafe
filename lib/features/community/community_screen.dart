@@ -53,16 +53,6 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
                 ListView(
                   padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
                   children: [
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: Text(
-                        'Traveller reports, separate from estimated coverage',
-                        style: TextStyle(
-                          color: context.palette.muted,
-                          fontSize: 15,
-                        ),
-                      ),
-                    ),
                     SingleChildScrollView(
                       scrollDirection: Axis.horizontal,
                       child: Row(
@@ -87,7 +77,6 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
                                       ? context.palette.beacon
                                       : context.palette.border,
                                 ),
-                                showCheckmark: false,
                                 onSelected: (_) =>
                                     setState(() => _operatorFilter = option.$1),
                               ),
@@ -95,7 +84,17 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
                         ],
                       ),
                     ),
-                    const Divider(height: 1),
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8, bottom: 12),
+                      child: Text(
+                        'Traveller reports, separate from estimated coverage',
+                        style: TextStyle(
+                          color: context.palette.muted,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                    const Divider(indent: 56, height: 1),
                     const SizedBox(height: 4),
                     if (reports.isEmpty)
                       Padding(
@@ -121,7 +120,8 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
                     else
                       for (var i = 0; i < reports.length; i++) ...[
                         _card(context, ref, session, reports[i]),
-                        if (i < reports.length - 1) const Divider(height: 1),
+                        if (i < reports.length - 1)
+                          const Divider(indent: 56, height: 1),
                       ],
                   ],
                 ),
@@ -131,6 +131,11 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
                   child: SafeArea(
                     top: false,
                     child: FloatingActionButton.extended(
+                      backgroundColor: context.palette.primaryContainer,
+                      foregroundColor: context.palette.onPrimaryContainer,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
                       onPressed: () => _submit(context, ref, session),
                       icon: const Icon(PhosphorIconsRegular.plus),
                       label: const Text('Report signal'),
@@ -153,20 +158,15 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
   ) {
     final flagged = session.flaggedIds.contains(report.id);
     final pal = context.palette;
-    final signalColor = pal.level(report.level);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 16),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           CircleAvatar(
-            radius: 24,
-            backgroundColor: signalColor.withValues(alpha: 0.16),
-            child: Icon(
-              PhosphorIconsRegular.broadcast,
-              color: signalColor,
-              size: 22,
-            ),
+            radius: 20,
+            backgroundColor: pal.levelContainer(report.level),
+            child: SignalBars(level: report.level),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -209,8 +209,7 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
                   const SizedBox(height: 4),
                   Text(
                     report.comment,
-                    style: Theme.of(context).textTheme.bodyLarge
-                        ?.copyWith(fontSize: 16),
+                    style: Theme.of(context).textTheme.bodyLarge,
                   ),
                 ],
                 const SizedBox(height: 10),
