@@ -46,15 +46,147 @@ class Glass extends StatelessWidget {
         border: Border.all(color: pal.border.withValues(alpha: 0.85)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.18),
-            blurRadius: 18,
-            offset: const Offset(0, 8),
+            color: Colors.black.withValues(
+              alpha: Theme.of(context).brightness == Brightness.dark
+                  ? 0.18
+                  : 0.07,
+            ),
+            blurRadius: 16,
+            offset: const Offset(0, 5),
           ),
         ],
       ),
       child: Material(type: MaterialType.transparency, child: child),
     );
   }
+}
+
+class RoutePreview extends StatelessWidget {
+  const RoutePreview({super.key, this.height = 124});
+
+  final double height;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      label: 'Illustrated route preview',
+      child: ExcludeSemantics(
+        child: SizedBox(
+          height: height,
+          width: double.infinity,
+          child: CustomPaint(painter: _RoutePreviewPainter(context.palette)),
+        ),
+      ),
+    );
+  }
+}
+
+class _RoutePreviewPainter extends CustomPainter {
+  const _RoutePreviewPainter(this.palette);
+
+  final SignalPalette palette;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final dark = palette == SignalPalette.dark;
+    final bounds = Offset.zero & size;
+    canvas.drawRect(bounds, Paint()..color = const Color(0xFFF1EFE9));
+
+    final park = Path()
+      ..moveTo(size.width * 0.48, size.height * 0.26)
+      ..lineTo(size.width * 0.88, size.height * 0.31)
+      ..lineTo(size.width * 0.91, size.height * 0.88)
+      ..lineTo(size.width * 0.43, size.height * 0.92)
+      ..close();
+    canvas.drawPath(park, Paint()..color = const Color(0xFFC9E8D0));
+
+    final roadPaint = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 9
+      ..strokeCap = StrokeCap.round;
+    final road = Path()
+      ..moveTo(-size.width * 0.05, size.height * 0.68)
+      ..cubicTo(
+        size.width * 0.25,
+        size.height * 0.44,
+        size.width * 0.62,
+        size.height * 1.04,
+        size.width * 1.05,
+        size.height * 0.56,
+      );
+    canvas.drawPath(road, roadPaint);
+    final sideRoad = Path()
+      ..moveTo(size.width * 0.18, -size.height * 0.1)
+      ..cubicTo(
+        size.width * 0.32,
+        size.height * 0.34,
+        size.width * 0.12,
+        size.height * 0.76,
+        size.width * 0.2,
+        size.height * 1.1,
+      );
+    canvas.drawPath(sideRoad, roadPaint);
+
+    final route = Path()
+      ..moveTo(size.width * 0.24, size.height * 0.18)
+      ..cubicTo(
+        size.width * 0.38,
+        size.height * 0.52,
+        size.width * 0.61,
+        size.height * 0.8,
+        size.width * 0.83,
+        size.height * 0.58,
+      );
+    final routePaint = Paint()
+      ..color = palette.beacon
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 6
+      ..strokeCap = StrokeCap.round;
+    canvas.drawPath(route, routePaint);
+    final metrics = route.computeMetrics();
+    for (final metric in metrics) {
+      for (var i = 4; i <= 8; i++) {
+        final point = metric
+            .getTangentForOffset(metric.length * i / 12)
+            ?.position;
+        if (point != null) {
+          canvas.drawCircle(point, 4, Paint()..color = palette.moderate);
+        }
+      }
+    }
+
+    final origin = Offset(size.width * 0.24, size.height * 0.18);
+    canvas.drawCircle(
+      origin,
+      11,
+      Paint()
+        ..color = Colors.white
+        ..style = PaintingStyle.fill,
+    );
+    canvas.drawCircle(
+      origin,
+      11,
+      Paint()
+        ..color = palette.beacon
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 4,
+    );
+    final destination = Offset(size.width * 0.83, size.height * 0.58);
+    canvas.drawCircle(destination, 13, Paint()..color = palette.sos);
+    canvas.drawCircle(destination, 5, Paint()..color = Colors.white);
+
+    if (dark) {
+      canvas.drawRect(
+        bounds,
+        Paint()..color = Colors.black.withValues(alpha: 0.18),
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(_RoutePreviewPainter oldDelegate) =>
+      oldDelegate.palette != palette;
 }
 
 class SignalChip extends StatelessWidget {
@@ -170,6 +302,8 @@ class RoundIconButton extends StatelessWidget {
       message: tooltip ?? '',
       child: Material(
         color: bg,
+        elevation: selected || sos ? 0 : 2,
+        shadowColor: Colors.black.withValues(alpha: 0.14),
         shape: const CircleBorder(),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
@@ -222,7 +356,7 @@ class SectionHeading extends StatelessWidget {
           Text(
             text,
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              color: context.palette.text,
+              color: context.palette.beacon,
               fontWeight: FontWeight.w600,
             ),
           ),

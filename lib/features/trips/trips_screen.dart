@@ -20,15 +20,33 @@ class TripsScreen extends ConsumerWidget {
             .where((trip) => trip.kind == 'saved' || trip.offlinePrepared)
             .toList();
         return Scaffold(
-          appBar: AppBar(title: const Text('Trips')),
+          appBar: AppBar(
+            title: const Text('Trips'),
+            actions: [
+              IconButton(
+                tooltip: 'Add a place',
+                onPressed: () => context.push('/search?mode=destination'),
+                icon: const Icon(PhosphorIconsRegular.plus),
+              ),
+              const SizedBox(width: 8),
+            ],
+          ),
           body: MaxWidthContent(
             child: ListView(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+              padding: const EdgeInsets.fromLTRB(20, 4, 20, 112),
               children: [
-                const SectionHeading(
-                  'Saved journeys',
-                  subtitle: 'Routes you can pick up again.',
+                SizedBox(
+                  height: 126,
+                  child: ListView(
+                    scrollDirection: Axis.horizontal,
+                    children: [
+                      for (final place in session.catalog.savedPlaces)
+                        _placeBubble(context, ref, place),
+                      _newPlaceBubble(context),
+                    ],
+                  ),
                 ),
+                const SectionHeading('Saved journeys'),
                 if (journeys.isEmpty)
                   Glass(
                     child: Column(
@@ -52,62 +70,51 @@ class TripsScreen extends ConsumerWidget {
                     ),
                   )
                 else
-                  for (final trip in journeys) _tile(context, session, trip),
-                const SectionHeading(
-                  'Recent searches',
-                  subtitle: 'Pick up where you left off.',
+                  for (final trip in journeys)
+                    _tile(context, ref, session, trip),
+                Row(
+                  children: [
+                    const Expanded(child: SectionHeading('Recent searches')),
+                    if (session.recents.isNotEmpty)
+                      TextButton(
+                        onPressed: () => ref
+                            .read(sessionProvider.notifier)
+                            .update((s) => s.copyWith(recents: const [])),
+                        child: const Text('Clear'),
+                      ),
+                  ],
                 ),
                 if (session.recents.isEmpty)
-                  Text(
-                    'Places you search for will appear here.',
-                    style: TextStyle(color: context.palette.muted),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 16),
+                    child: Text(
+                      'Places you search for will appear here.',
+                      style: TextStyle(color: context.palette.muted),
+                    ),
                   )
                 else
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      for (final recent in session.recents)
-                        ActionChip(
-                          avatar: const Icon(
-                            PhosphorIconsRegular.clockCounterClockwise,
-                            size: 16,
-                          ),
-                          label: Text(recent),
-                          onPressed: () => context.go('/map'),
-                        ),
-                    ],
-                  ),
-                const SectionHeading(
-                  'Frequent places',
-                  subtitle: 'Places saved to your profile.',
-                ),
-                for (final item in session.catalog.savedPlaces)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: Glass(
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                      child: ListTile(
-                        leading: const Icon(
-                          PhosphorIconsRegular.mapPinLine,
+                  for (final recent in session.recents)
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: CircleAvatar(
+                        radius: 22,
+                        backgroundColor: context.palette.elevated,
+                        child: Icon(
+                          PhosphorIconsRegular.clockCounterClockwise,
+                          color: context.palette.text,
                           size: 20,
                         ),
-                        title: Text(item['label']!),
-                        trailing: const Icon(
-                          PhosphorIconsRegular.caretRight,
-                          size: 18,
-                        ),
-                        onTap: () {
-                          ref
-                              .read(sessionProvider.notifier)
-                              .update(
-                                (s) => s.copyWith(destinationId: item['id']),
-                              );
-                          context.go('/map');
-                        },
                       ),
+                      title: Text(
+                        recent,
+                        style: const TextStyle(fontWeight: FontWeight.w500),
+                      ),
+                      trailing: Icon(
+                        PhosphorIconsRegular.arrowUpLeft,
+                        color: context.palette.muted,
+                      ),
+                      onTap: () => context.go('/map'),
                     ),
-                  ),
               ],
             ),
           ),
@@ -116,42 +123,214 @@ class TripsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _tile(BuildContext context, Session session, SavedTrip trip) {
-    final route = session.catalog.routeById(trip.routeId);
-    final origin = session.catalog.place(trip.originId);
-    final destination = session.catalog.place(trip.destinationId);
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Glass(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        child: Column(
-          children: [
-            ListTile(
-              leading: const Icon(PhosphorIconsRegular.path, size: 22),
-              title: Text(trip.name),
-              subtitle: Text(
-                '${origin.name} to ${destination.name}\n'
-                '${route.distanceKm.toStringAsFixed(0)} km · '
-                '${formatDuration(route.durationMin)}',
-              ),
-              trailing: const Icon(PhosphorIconsRegular.caretRight, size: 18),
-              onTap: () => context.push('/trip/${trip.id}'),
-            ),
-            if (trip.offlinePrepared)
-              const Padding(
-                padding: EdgeInsets.only(left: 64, bottom: 8),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: SignalChip(
-                    level: 'good',
-                    label: 'Offline ready',
-                    compact: true,
-                  ),
+  Widget _placeBubble(
+    BuildContext context,
+    WidgetRef ref,
+    Map<String, String> place,
+  ) {
+    final label = place['label']!.split(' · ');
+    final isHome = label.first.toLowerCase() == 'home';
+    final pal = context.palette;
+    return SizedBox(
+      width: 106,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(20),
+        onTap: () {
+          ref
+              .read(sessionProvider.notifier)
+              .update((s) => s.copyWith(destinationId: place['id']));
+          context.go('/map');
+        },
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Column(
+            children: [
+              CircleAvatar(
+                radius: 28,
+                backgroundColor: isHome
+                    ? pal.good.withValues(alpha: 0.18)
+                    : pal.sos.withValues(alpha: 0.14),
+                child: Icon(
+                  isHome
+                      ? PhosphorIconsRegular.houseLine
+                      : PhosphorIconsRegular.mapPinLine,
+                  color: isHome ? pal.beacon : pal.sos,
+                  size: 25,
                 ),
               ),
-          ],
+              const SizedBox(height: 8),
+              Text(
+                label.first,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontWeight: FontWeight.w500),
+              ),
+              if (label.length > 1)
+                Text(
+                  label.skip(1).join(' · '),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: pal.muted, fontSize: 12),
+                ),
+            ],
+          ),
         ),
       ),
     );
+  }
+
+  Widget _newPlaceBubble(BuildContext context) {
+    final pal = context.palette;
+    return SizedBox(
+      width: 106,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(20),
+        onTap: () => context.push('/search?mode=destination'),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Column(
+            children: [
+              CircleAvatar(
+                radius: 28,
+                backgroundColor: pal.elevated,
+                child: Icon(
+                  PhosphorIconsRegular.plus,
+                  color: pal.muted,
+                  size: 25,
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text('New place', textAlign: TextAlign.center),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _tile(
+    BuildContext context,
+    WidgetRef ref,
+    Session session,
+    SavedTrip trip,
+  ) {
+    final route = session.catalog.routeById(trip.routeId);
+    final origin = session.catalog.place(trip.originId);
+    final destination = session.catalog.place(trip.destinationId);
+    final pal = context.palette;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Material(
+        color: pal.surface,
+        borderRadius: BorderRadius.circular(22),
+        clipBehavior: Clip.antiAlias,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            border: Border.all(color: pal.border),
+            borderRadius: BorderRadius.circular(22),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const RoutePreview(height: 124),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      trip.name,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.titleLarge
+                          ?.copyWith(fontWeight: FontWeight.w500),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${origin.name.split(',').first} → ${destination.name} · '
+                      '${route.distanceKm.toStringAsFixed(0)} km · '
+                      '${formatDuration(route.durationMin)}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(color: pal.muted),
+                    ),
+                    const SizedBox(height: 12),
+                    Wrap(
+                      alignment: WrapAlignment.spaceBetween,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      runSpacing: 8,
+                      children: [
+                        if (trip.offlinePrepared)
+                          Tooltip(
+                            message: 'This saved plan does not include downloaded map tiles.',
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 8,
+                              ),
+                              decoration: BoxDecoration(
+                                color: pal.good.withValues(alpha: 0.16),
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    PhosphorIconsRegular.check,
+                                    color: pal.good,
+                                    size: 18,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    'Offline plan · demo',
+                                    style: TextStyle(
+                                      color: pal.text,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            TextButton(
+                              onPressed: () => context.push('/trip/${trip.id}'),
+                              child: const Text('Details'),
+                            ),
+                            const SizedBox(width: 4),
+                            FilledButton(
+                              onPressed: () => _start(context, ref, trip),
+                              child: const Text('Start'),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _start(BuildContext context, WidgetRef ref, SavedTrip trip) {
+    ref
+        .read(sessionProvider.notifier)
+        .update(
+          (s) => s.copyWith(
+            selectedRouteId: trip.routeId,
+            originId: trip.originId,
+            destinationId: trip.destinationId,
+            navProgress: 0.05,
+          ),
+        );
+    context.push('/navigate');
   }
 }

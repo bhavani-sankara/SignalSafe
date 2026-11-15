@@ -43,17 +43,29 @@ The follow-up audit focused on making the non-map flows easier to scan and act o
 
 Browser review covered Safety, Compare, Report, Community, Profile, Search, and Navigation. The refreshed layouts remained readable at the reviewed viewport; long forms and lists continue vertically, with persistent actions available where needed.
 
+### Reference-led visual refresh
+
+The supplied light mobile references now guide the default appearance:
+
+- Set the default theme to a pale neutral canvas, white surfaces, dark readable text, teal selection, distinct signal colors, and a restrained red SOS treatment. The night-drive theme remains optional.
+- Reworked the Map route selector, category chips, signal strip, and journey action sheet while retaining OSM tiles and existing route/map interactions.
+- Made the route summary's weak/no-signal estimate follow the selected route and operator rather than a fixed blackspot duration and recovery point.
+- Added illustrated route previews and saved-place shortcuts on Trips, redesigned Safety contacts/alerts around the honest demo state, simplified Community into report rows with a floating action, and changed Profile preferences to segmented controls.
+- Kept a visible warning that map downloads, live-location sharing, and automatic SOS delivery are not available in this demo.
+
+Browser review covered the Map, Trips, Safety, Community, and Profile references. The route preview, light palette, and section layouts rendered as intended; longer pages remain scrollable.
+
 ## Verification
 
-- `flutter analyze` — passed with no issues after the UI/UX pass.
-- `flutter test` — passed (4 tests), covering Community flag readability, report actions, and duplicate saved/offline journeys.
+- `flutter analyze` — passed with no issues after the reference-led refresh.
+- `flutter test` — passed (5 tests), covering Community flag readability, report actions, Safety demo disclosures, catalog parsing, and duplicate saved/offline journeys.
 - `git diff --check` — passed.
 
 ## Remaining gaps
 
 These are observations, not tasks from an existing plan:
 
-- The light-theme colors differ from the design-system palette: its background is `#F3F6FA` rather than `#F4F7FB`, and the beacon, route, signal-good, and SOS accents are adjusted. Review the contrast trade-off before changing these values.
+- The optional dark theme has not had a fresh device-level contrast review after the light-first refresh.
 - No explicit reduced-motion preference handling was found in the app code.
 - The project is currently a demo: connectivity and reports use mock data, signal loss is simulated, and SOS handling does not send an SMS or notify multiple contacts. Map tiles come from the network, so offline map downloads are not implemented.
 - `README.md` still describes a generic Flutter starter rather than SignalSafe.

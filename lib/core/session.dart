@@ -216,7 +216,7 @@ class SessionController extends Notifier<Session?> {
         voiceOn: false,
         navActive: false,
         navProgress: 0.18,
-        darkMode: true,
+        darkMode: false,
         notify: const NotifyPrefs(),
         userName: c.userName,
         queuedSos: false,

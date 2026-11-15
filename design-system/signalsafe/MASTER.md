@@ -1,35 +1,35 @@
 # Design System Master File
 
 **Project:** SignalSafe
-**Generated:** 2026-11-09
+**Updated:** 2026-11-15
 **Category:** Travel safety navigation
-**Override note:** Palette and type are product-specific (night-highway instrument), not the generic booking-blue defaults.
+**Direction:** Reference-led, light-first travel safety UI with a quiet teal signal accent.
 
 ---
 
 ## Global Rules
 
-Treat the map as the product. Chrome floats like a night-drive HUD. Connectivity is the distinctive layer (route ribbon). SOS is a protected red control, never the brand color.
+Make the selected route and its connectivity story easy to read at a glance. Use light, low-noise map chrome and white surfaces; keep signal levels distinct and SOS a protected red control, never the brand color. The night-drive palette remains an optional theme.
 
-### Color Palette
+### Default Light Palette
 
 | Role | Hex | Token |
 |------|-----|-------|
-| Ink background | `#0B1118` | `ink` |
-| Surface | `#151C26` | `surface` |
-| Elevated glass | `#1C2633` | `elevated` |
-| Text | `#E7EEF6` | `text` |
-| Muted | `#8B9AAB` | `muted` |
-| Beacon / brand | `#2FD3C5` | `beacon` |
-| Route | `#6BA8FF` | `route` |
-| Signal good | `#2FD3C5` | `signalGood` |
-| Signal moderate | `#E0B04A` | `signalModerate` |
-| Signal weak | `#E07A3A` | `signalWeak` |
-| Signal none | `#4A5563` | `signalNone` |
-| SOS | `#E11D2E` | `sos` |
-| Border | `#2A3544` | `border` |
+| Page background | `#F6F8F7` | `ink` |
+| Surface | `#FFFFFF` | `surface` |
+| Elevated surface | `#EDF3F1` | `elevated` |
+| Text | `#1F2926` | `text` |
+| Muted | `#59645F` | `muted` |
+| Beacon / brand | `#007F70` | `beacon` |
+| Route | `#3E7BCC` | `route` |
+| Signal good | `#16845B` | `signalGood` |
+| Signal moderate | `#A96600` | `signalModerate` |
+| Signal weak | `#C55D00` | `signalWeak` |
+| Signal none | `#68736F` | `signalNone` |
+| SOS | `#B3261E` | `sos` |
+| Border | `#CBD4D1` | `border` |
 
-Light theme inverts ink/surface to `#F4F7FB` / `#FFFFFF` while keeping beacon, route, and SOS.
+The optional dark theme uses the night-drive palette from the previous design revision.
 
 ### Typography
 
@@ -51,9 +51,10 @@ Phosphor, outline at rest, fill for selected tab. Never emoji.
 
 ## Non-map Screens
 
-- Group related actions and settings into clear sections with sentence-case headings and short supporting copy.
+- Trips: surface saved places first, show a compact route preview, and keep recent searches easy to clear.
+- Safety: give SOS a distinct red surface and state demo limitations plainly; never claim live sharing or automatic delivery unless implemented.
+- Community: use readable report rows, compact network filters, and a clear report action.
+- Profile: use full-width segmented choices for mutually exclusive preferences and preserve the optional dark theme.
+- Use explicit labels for signal levels and selected states; never rely on color alone.
 - Give route summaries and primary actions stronger hierarchy than supporting metrics.
-- Use explicit labels for signal levels and selected/ranked states; never rely on color alone.
-- Keep filters and preference choices visibly selected with the beacon accent.
-- Use empty states to explain the next useful action. State clearly when safety or offline behavior is simulated.
-- Preserve the map canvas as-is when refining surrounding navigation HUD controls.
+- Keep actions at least 48dp high, preserve safe areas, and allow long content to scroll clear of fixed navigation.

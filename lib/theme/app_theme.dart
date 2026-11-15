@@ -52,28 +52,28 @@ class SignalPalette {
   );
 
   static const light = SignalPalette(
-    ink: Color(0xFFF3F6FA),
+    ink: Color(0xFFF6F8F7),
     surface: Color(0xFFFFFFFF),
-    elevated: Color(0xFFEEF3F8),
-    text: Color(0xFF12202E),
-    muted: Color(0xFF5B6B7C),
-    beacon: Color(0xFF128F86),
-    route: Color(0xFF2F6FDB),
-    good: Color(0xFF128F86),
-    moderate: Color(0xFFB8860B),
-    weak: Color(0xFFC45C1A),
-    none: Color(0xFF6B7280),
-    sos: Color(0xFFD50F22),
-    border: Color(0xFFD5DEE8),
-    glass: Color(0xF2FFFFFF),
+    elevated: Color(0xFFEDF3F1),
+    text: Color(0xFF1F2926),
+    muted: Color(0xFF59645F),
+    beacon: Color(0xFF007F70),
+    route: Color(0xFF3E7BCC),
+    good: Color(0xFF16845B),
+    moderate: Color(0xFFA96600),
+    weak: Color(0xFFC55D00),
+    none: Color(0xFF68736F),
+    sos: Color(0xFFB3261E),
+    border: Color(0xFFCBD4D1),
+    glass: Color(0xF8FFFFFF),
   );
 
   Color level(String level) => switch (level) {
-        'good' => good,
-        'moderate' => moderate,
-        'weak' => weak,
-        _ => none,
-      };
+    'good' => good,
+    'moderate' => moderate,
+    'weak' => weak,
+    _ => none,
+  };
 }
 
 class AppTheme {
@@ -114,11 +114,43 @@ class AppTheme {
         foregroundColor: pal.text,
         elevation: 0,
         centerTitle: false,
+        surfaceTintColor: Colors.transparent,
         titleTextStyle: TextStyle(
           fontFamily: outfitFamily,
-          fontSize: 20,
-          fontWeight: FontWeight.w600,
+          fontSize: 28,
+          fontWeight: FontWeight.w500,
           color: pal.text,
+        ),
+      ),
+      navigationBarTheme: NavigationBarThemeData(
+        height: 78,
+        backgroundColor: pal.elevated,
+        indicatorColor: pal.beacon.withValues(alpha: 0.16),
+        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+        labelTextStyle: WidgetStateProperty.resolveWith(
+          (states) => TextStyle(
+            fontFamily: outfitFamily,
+            fontSize: 12,
+            fontWeight: states.contains(WidgetState.selected)
+                ? FontWeight.w700
+                : FontWeight.w500,
+            color: pal.text,
+          ),
+        ),
+        iconTheme: WidgetStateProperty.resolveWith(
+          (states) => IconThemeData(
+            color: states.contains(WidgetState.selected)
+                ? pal.beacon
+                : pal.muted,
+          ),
+        ),
+      ),
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          minimumSize: const Size(48, 48),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(18),
+          ),
         ),
       ),
       bottomSheetTheme: BottomSheetThemeData(
@@ -145,6 +177,15 @@ class AppTheme {
         ),
         hintStyle: TextStyle(color: pal.muted),
       ),
+      cardTheme: CardThemeData(
+        color: pal.surface,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: BorderSide(color: pal.border),
+        ),
+      ),
     );
   }
 }
@@ -156,7 +197,11 @@ extension PaletteContext on BuildContext {
   }
 }
 
-TextStyle dataStyle(BuildContext context, {double size = 14, FontWeight? weight}) {
+TextStyle dataStyle(
+  BuildContext context, {
+  double size = 14,
+  FontWeight? weight,
+}) {
   return TextStyle(
     fontFamily: GoogleFonts.ibmPlexSans().fontFamily,
     fontSize: size,

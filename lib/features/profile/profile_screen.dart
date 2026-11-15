@@ -19,188 +19,169 @@ class ProfileScreen extends ConsumerWidget {
           appBar: AppBar(title: const Text('Profile')),
           body: MaxWidthContent(
             child: ListView(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 112),
               children: [
-                Glass(
-                  color: context.palette.elevated,
-                  child: Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 28,
-                        backgroundColor: context.palette.beacon,
-                        child: Text(
-                          session.userName.isEmpty ? 'S' : session.userName[0],
-                          style: const TextStyle(
-                            color: Color(0xFF06201C),
-                            fontWeight: FontWeight.w700,
-                            fontSize: 22,
-                          ),
+                Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 36,
+                      backgroundColor: context.palette.beacon,
+                      child: Text(
+                        session.userName.isEmpty ? 'S' : session.userName[0],
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 28,
                         ),
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              session.userName,
-                              style: Theme.of(context).textTheme.titleLarge,
-                            ),
-                            Text(
-                              session.catalog.userHandle,
-                              style: TextStyle(color: context.palette.muted),
-                            ),
-                          ],
-                        ),
-                      ),
-                      IconButton(
-                        tooltip: 'Edit name',
-                        onPressed: () =>
-                            _rename(context, ref, session.userName),
-                        icon: const Icon(PhosphorIconsRegular.pencilSimple),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 18),
-                Glass(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const SectionHeading(
-                        'Travel preferences',
-                        subtitle: 'Set how SignalSafe plans your journey.',
-                      ),
-                      const SectionLabel('Preferred network'),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          for (final op in const [
-                            'jio',
-                            'airtel',
-                            'vi',
-                            'bsnl',
-                          ])
-                            _preferenceChip(
-                              context,
-                              label: operatorLabel(op),
-                              selected: session.preferredOperator == op,
-                              onSelected: () => ref
-                                  .read(sessionProvider.notifier)
-                                  .update(
-                                    (s) => s.copyWith(
-                                      preferredOperator: op,
-                                      operatorFilter: op,
-                                    ),
-                                  ),
-                            ),
+                          Text(
+                            session.userName,
+                            style: Theme.of(context).textTheme.headlineSmall
+                                ?.copyWith(fontWeight: FontWeight.w500),
+                          ),
+                          Text(
+                            session.catalog.userHandle,
+                            style: TextStyle(color: context.palette.muted),
+                          ),
                         ],
                       ),
-                      const SizedBox(height: 12),
-                      const SectionLabel('Travel mode'),
-                      _choice(
-                        context,
-                        const ['car', 'bike', 'transit', 'walk'],
-                        const ['Car', 'Bike', 'Transit', 'Walk'],
-                        session.travelMode,
-                        (v) => ref
-                            .read(sessionProvider.notifier)
-                            .update((s) => s.copyWith(travelMode: v)),
-                      ),
-                      const SectionLabel('Route preference'),
-                      _choice(
-                        context,
-                        const ['connectivity', 'fastest', 'balanced'],
-                        const ['Best signal', 'Fastest', 'Balanced'],
-                        session.routePref,
-                        (v) => ref
-                            .read(sessionProvider.notifier)
-                            .update((s) => s.copyWith(routePref: v)),
-                      ),
-                      const SectionLabel('Safety preference'),
-                      _choice(
-                        context,
-                        const ['avoidBlackspots', 'nearServices'],
-                        const ['Avoid long blackspots', 'Stay near services'],
-                        session.safetyPref,
-                        (v) => ref
-                            .read(sessionProvider.notifier)
-                            .update((s) => s.copyWith(safetyPref: v)),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Glass(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const SectionHeading('Saved places'),
-                      for (final place in session.catalog.savedPlaces)
-                        ListTile(
-                          contentPadding: EdgeInsets.zero,
-                          leading: const Icon(
-                            PhosphorIconsRegular.mapPinLine,
-                            size: 20,
-                          ),
-                          title: Text(place['label']!),
+                    ),
+                    IconButton.filledTonal(
+                      tooltip: 'Edit name',
+                      onPressed: () => _rename(context, ref, session.userName),
+                      icon: const Icon(PhosphorIconsRegular.pencilSimple),
+                      style: IconButton.styleFrom(
+                        backgroundColor: context.palette.beacon.withValues(
+                          alpha: 0.14,
                         ),
-                    ],
-                  ),
+                        foregroundColor: context.palette.beacon,
+                        minimumSize: const Size(52, 52),
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 12),
-                Glass(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const SectionHeading(
-                        'Notifications',
-                        subtitle: 'Choose which route events to hear about.',
-                      ),
-                      _switch(
-                        context,
-                        ref,
-                        'Upcoming blackspots',
-                        session.notify.blackspots,
-                        (v) => session.notify.copyWith(blackspots: v),
-                      ),
-                      _switch(
-                        context,
-                        ref,
-                        'Signal lost or restored',
-                        session.notify.lossRestore,
-                        (v) => session.notify.copyWith(lossRestore: v),
-                      ),
-                      _switch(
-                        context,
-                        ref,
-                        'Approaching recovery points',
-                        session.notify.recovery,
-                        (v) => session.notify.copyWith(recovery: v),
-                      ),
-                      _switch(
-                        context,
-                        ref,
-                        'Safety alerts',
-                        session.notify.safety,
-                        (v) => session.notify.copyWith(safety: v),
-                      ),
-                    ],
-                  ),
+                const SizedBox(height: 24),
+                const SectionHeading(
+                  'Travel preferences',
+                  subtitle: 'Set how SignalSafe plans your journey.',
                 ),
-                const SizedBox(height: 12),
-                Glass(
-                  child: SwitchListTile(
+                const SectionLabel('Preferred network'),
+                _segments(
+                  context,
+                  const ['jio', 'airtel', 'vi', 'bsnl'],
+                  const ['Jio', 'Airtel', 'Vi', 'BSNL'],
+                  session.preferredOperator,
+                  (value) => ref
+                      .read(sessionProvider.notifier)
+                      .update(
+                        (s) => s.copyWith(
+                          preferredOperator: value,
+                          operatorFilter: value,
+                        ),
+                      ),
+                ),
+                const SizedBox(height: 16),
+                const SectionLabel('Travel mode'),
+                _segments(
+                  context,
+                  const ['car', 'bike', 'transit', 'walk'],
+                  const ['Car', 'Bike', 'Transit', 'Walk'],
+                  session.travelMode,
+                  (value) => ref
+                      .read(sessionProvider.notifier)
+                      .update((s) => s.copyWith(travelMode: value)),
+                ),
+                const SizedBox(height: 16),
+                const SectionLabel('Route preference'),
+                _segments(
+                  context,
+                  const ['connectivity', 'balanced', 'fastest'],
+                  const ['Best signal', 'Balanced', 'Fastest'],
+                  session.routePref,
+                  (value) => ref
+                      .read(sessionProvider.notifier)
+                      .update((s) => s.copyWith(routePref: value)),
+                ),
+                const SizedBox(height: 16),
+                const SectionLabel('Safety'),
+                _segments(
+                  context,
+                  const ['avoidBlackspots', 'nearServices'],
+                  const ['Avoid long blackspots', 'Stay near services'],
+                  session.safetyPref,
+                  (value) => ref
+                      .read(sessionProvider.notifier)
+                      .update((s) => s.copyWith(safetyPref: value)),
+                ),
+                const SizedBox(height: 28),
+                const SectionHeading('Saved places'),
+                for (final place in session.catalog.savedPlaces)
+                  ListTile(
                     contentPadding: EdgeInsets.zero,
-                    secondary: const Icon(PhosphorIconsRegular.moon),
-                    title: const Text('Dark map'),
-                    subtitle: const Text('Use the night-drive map theme.'),
-                    value: session.darkMode,
-                    onChanged: (v) => ref
-                        .read(sessionProvider.notifier)
-                        .update((s) => s.copyWith(darkMode: v)),
+                    leading: CircleAvatar(
+                      backgroundColor: context.palette.elevated,
+                      child: Icon(
+                        PhosphorIconsRegular.mapPinLine,
+                        color: context.palette.text,
+                      ),
+                    ),
+                    title: Text(
+                      place['label']!.split(' · ').first,
+                      style: const TextStyle(fontWeight: FontWeight.w500),
+                    ),
+                    subtitle: place['label']!.contains(' · ')
+                        ? Text(place['label']!.split(' · ').last)
+                        : null,
                   ),
+                const SizedBox(height: 16),
+                const SectionHeading(
+                  'Notifications',
+                  subtitle: 'Choose which route events to hear about.',
+                ),
+                _switch(
+                  context,
+                  ref,
+                  'Upcoming blackspots',
+                  session.notify.blackspots,
+                  (v) => session.notify.copyWith(blackspots: v),
+                ),
+                _switch(
+                  context,
+                  ref,
+                  'Signal lost or restored',
+                  session.notify.lossRestore,
+                  (v) => session.notify.copyWith(lossRestore: v),
+                ),
+                _switch(
+                  context,
+                  ref,
+                  'Approaching recovery points',
+                  session.notify.recovery,
+                  (v) => session.notify.copyWith(recovery: v),
+                ),
+                _switch(
+                  context,
+                  ref,
+                  'Safety alerts',
+                  session.notify.safety,
+                  (v) => session.notify.copyWith(safety: v),
+                ),
+                const SizedBox(height: 12),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  secondary: const Icon(PhosphorIconsRegular.moon),
+                  title: const Text('Dark theme'),
+                  subtitle: const Text('Switch to the night-drive palette.'),
+                  value: session.darkMode,
+                  onChanged: (v) => ref
+                      .read(sessionProvider.notifier)
+                      .update((s) => s.copyWith(darkMode: v)),
                 ),
               ],
             ),
@@ -210,48 +191,35 @@ class ProfileScreen extends ConsumerWidget {
     );
   }
 
-  Widget _choice(
+  Widget _segments(
     BuildContext context,
     List<String> values,
     List<String> labels,
     String current,
-    ValueChanged<String> onPick,
+    ValueChanged<String> onChanged,
   ) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Wrap(
-        spacing: 8,
-        runSpacing: 8,
-        children: [
-          for (var i = 0; i < values.length; i++)
-            _preferenceChip(
-              context,
-              label: labels[i],
-              selected: current == values[i],
-              onSelected: () => onPick(values[i]),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _preferenceChip(
-    BuildContext context, {
-    required String label,
-    required bool selected,
-    required VoidCallback onSelected,
-  }) {
     final pal = context.palette;
-    return ChoiceChip(
-      label: Text(label),
-      selected: selected,
-      selectedColor: pal.beacon.withValues(alpha: 0.18),
-      side: BorderSide(color: selected ? pal.beacon : pal.border),
-      labelStyle: TextStyle(
-        color: pal.text,
-        fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+    return SizedBox(
+      width: double.infinity,
+      child: SegmentedButton<String>(
+        showSelectedIcon: true,
+        segments: [
+          for (var i = 0; i < values.length; i++)
+            ButtonSegment(value: values[i], label: Text(labels[i])),
+        ],
+        selected: {current},
+        onSelectionChanged: (selection) => onChanged(selection.first),
+        style: ButtonStyle(
+          minimumSize: const WidgetStatePropertyAll(Size(0, 48)),
+          foregroundColor: WidgetStatePropertyAll(pal.text),
+          backgroundColor: WidgetStateProperty.resolveWith((states) {
+            return states.contains(WidgetState.selected)
+                ? pal.beacon.withValues(alpha: 0.16)
+                : pal.ink;
+          }),
+          side: WidgetStatePropertyAll(BorderSide(color: pal.border)),
+        ),
       ),
-      onSelected: (_) => onSelected(),
     );
   }
 

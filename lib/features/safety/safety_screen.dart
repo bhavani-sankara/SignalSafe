@@ -20,22 +20,108 @@ class SafetyScreen extends ConsumerWidget {
         final pal = context.palette;
         final stamp = DateFormat('d MMM, HH:mm').format(DateTime.now());
         return Scaffold(
-          appBar: AppBar(title: const Text('Safety')),
+          appBar: AppBar(
+            title: const Text('Safety'),
+            actions: [
+              Container(
+                margin: const EdgeInsets.only(right: 16),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: pal.moderate.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      PhosphorIconsFill.circle,
+                      size: 9,
+                      color: pal.moderate,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Demo mode',
+                      style: TextStyle(
+                        color: pal.text,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
           body: MaxWidthContent(
             child: ListView(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 112),
               children: [
-                SizedBox(
-                  height: 64,
-                  width: double.infinity,
-                  child: FilledButton.icon(
-                    style: FilledButton.styleFrom(
-                      backgroundColor: pal.sos,
-                      foregroundColor: Colors.white,
-                    ),
-                    onPressed: () => _sos(context, ref, session, stamp),
-                    icon: const Icon(PhosphorIconsFill.siren),
-                    label: const Text('Emergency SOS'),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: pal.sos.withValues(alpha: 0.09),
+                    borderRadius: BorderRadius.circular(26),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          CircleAvatar(
+                            radius: 25,
+                            backgroundColor: pal.sos,
+                            child: const Icon(
+                              PhosphorIconsFill.siren,
+                              color: Colors.white,
+                              size: 24,
+                            ),
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Emergency SOS',
+                                  style: Theme.of(context).textTheme.titleLarge
+                                      ?.copyWith(
+                                        color: pal.sos,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Call a contact when you have service. '
+                                  'This demo does not share live location or '
+                                  'send messages.',
+                                  style: TextStyle(
+                                    color: pal.text,
+                                    height: 1.4,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        width: double.infinity,
+                        child: FilledButton.icon(
+                          style: FilledButton.styleFrom(
+                            backgroundColor: pal.sos,
+                            foregroundColor: Colors.white,
+                            minimumSize: const Size.fromHeight(52),
+                          ),
+                          onPressed: () => _sos(context, ref, session, stamp),
+                          icon: const Icon(PhosphorIconsFill.siren),
+                          label: const Text('Emergency SOS'),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 if (session.queuedSos)
@@ -62,48 +148,51 @@ class SafetyScreen extends ConsumerWidget {
                 const SizedBox(height: 18),
                 Row(
                   children: [
-                    const Expanded(
-                      child: SectionHeading(
-                        'Emergency contacts',
-                        subtitle: 'People you can reach on this trip.',
-                      ),
-                    ),
-                    IconButton(
-                      tooltip: 'Add emergency contact',
+                    const Expanded(child: SectionHeading('Emergency contacts')),
+                    TextButton.icon(
                       onPressed: () => _editContact(context, ref, null),
-                      icon: const Icon(PhosphorIconsRegular.plus),
+                      icon: const Icon(PhosphorIconsRegular.plus, size: 18),
+                      label: const Text('Add'),
                     ),
                   ],
                 ),
                 for (final contact in session.contacts)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: Glass(
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                      child: ListTile(
-                        leading: const CircleAvatar(
-                          child: Icon(PhosphorIconsRegular.user),
+                  ListTile(
+                    contentPadding: const EdgeInsets.symmetric(vertical: 4),
+                    leading: CircleAvatar(
+                      radius: 25,
+                      backgroundColor: contact.preferred
+                          ? pal.beacon.withValues(alpha: 0.18)
+                          : pal.elevated,
+                      child: Text(
+                        _initials(contact.name),
+                        style: TextStyle(
+                          color: pal.text,
+                          fontWeight: FontWeight.w600,
                         ),
-                        title: Text(contact.name),
-                        subtitle: Text(contact.phone),
-                        trailing: contact.preferred
-                            ? const SignalChip(
-                                level: 'good',
-                                label: 'Preferred',
-                                compact: true,
-                              )
-                            : const Icon(
-                                PhosphorIconsRegular.dotsThree,
-                                size: 20,
-                              ),
-                        onTap: () => _contactActions(context, ref, contact),
                       ),
                     ),
+                    title: Text(
+                      contact.name,
+                      style: const TextStyle(fontWeight: FontWeight.w500),
+                    ),
+                    subtitle: Text(
+                      '${contact.preferred ? 'Preferred · ' : ''}${contact.phone}',
+                      style: TextStyle(color: pal.muted),
+                    ),
+                    trailing: IconButton.filledTonal(
+                      tooltip: 'Call ${contact.name}',
+                      onPressed: () => _callContact(context, contact),
+                      icon: const Icon(PhosphorIconsRegular.phoneCall),
+                      style: IconButton.styleFrom(
+                        backgroundColor: pal.beacon.withValues(alpha: 0.14),
+                        foregroundColor: pal.beacon,
+                        minimumSize: const Size(48, 48),
+                      ),
+                    ),
+                    onTap: () => _contactActions(context, ref, contact),
                   ),
-                const SectionHeading(
-                  'Safety alerts',
-                  subtitle: 'Known risks along the selected route.',
-                ),
+                const SectionHeading('Safety alerts on this route'),
                 for (final alert in session.catalog.alerts)
                   _alert(context, alert),
                 const SectionHeading(
@@ -131,7 +220,11 @@ class SafetyScreen extends ConsumerWidget {
                         style: const TextStyle(fontWeight: FontWeight.w600),
                       ),
                       const SizedBox(height: 8),
-                      for (final line in session.catalog.instructions)
+                      for (final line in session.catalog.instructions.where(
+                        (line) => !line.toLowerCase().contains(
+                          'queued sos messages send automatically',
+                        ),
+                      ))
                         Padding(
                           padding: const EdgeInsets.only(bottom: 8),
                           child: Row(
@@ -214,38 +307,60 @@ class SafetyScreen extends ConsumerWidget {
   }
 
   Widget _alert(BuildContext context, SafetyAlert alert) {
-    final level = alert.severity == 'high' ? 'weak' : 'moderate';
+    final pal = context.palette;
+    final color = alert.severity == 'high' ? pal.sos : pal.moderate;
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Glass(
-        padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(color: color.withValues(alpha: 0.28)),
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                SignalChip(
-                  level: level,
-                  label: alert.severity == 'high' ? 'High risk' : 'Caution',
-                  compact: true,
-                ),
-                const SizedBox(width: 8),
-                Icon(
-                  alert.severity == 'high'
-                      ? PhosphorIconsRegular.warning
-                      : PhosphorIconsRegular.info,
-                  color: context.palette.level(level),
-                  size: 18,
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        PhosphorIconsRegular.warning,
+                        color: color,
+                        size: 17,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        alert.severity == 'high' ? 'High risk' : 'Caution',
+                        style: TextStyle(
+                          color: pal.text,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 12),
             Text(
               alert.title,
-              style: const TextStyle(fontWeight: FontWeight.w700),
+              style: Theme.of(context).textTheme.titleMedium
+                  ?.copyWith(fontWeight: FontWeight.w600),
             ),
-            const SizedBox(height: 4),
-            Text(alert.body),
+            const SizedBox(height: 6),
+            Text(alert.body, style: TextStyle(color: pal.muted, height: 1.4)),
           ],
         ),
       ),
@@ -364,20 +479,7 @@ class SafetyScreen extends ConsumerWidget {
               title: const Text('Call contact'),
               onTap: () async {
                 Navigator.pop(sheetContext);
-                final uri = Uri.parse(
-                  'tel:${contact.phone.replaceAll(' ', '')}',
-                );
-                final canCall = await canLaunchUrl(uri);
-                final didLaunch = canCall && await launchUrl(uri);
-                if (!didLaunch && screenContext.mounted) {
-                  ScaffoldMessenger.of(screenContext).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        'Could not open a call to ${contact.name}.',
-                      ),
-                    ),
-                  );
-                }
+                await _callContact(screenContext, contact);
               },
             ),
             ListTile(
@@ -449,6 +551,25 @@ class SafetyScreen extends ConsumerWidget {
           ],
         ),
       ),
+    );
+  }
+
+  Future<void> _callContact(
+    BuildContext context,
+    EmergencyContact contact,
+  ) async {
+    final uri = Uri.parse('tel:${contact.phone.replaceAll(' ', '')}');
+    final canCall = await canLaunchUrl(uri);
+    final didLaunch = canCall && await launchUrl(uri);
+    if (!context.mounted) return;
+    if (!didLaunch) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not open a call to ${contact.name}.')),
+      );
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Phone app opened to call ${contact.name}.')),
     );
   }
 
@@ -536,4 +657,11 @@ class SafetyScreen extends ConsumerWidget {
     name.dispose();
     phone.dispose();
   }
+}
+
+String _initials(String name) {
+  final parts = name.trim().split(RegExp(r'\s+'));
+  if (parts.length == 1) return parts.first.substring(0, 1).toUpperCase();
+  return '${parts.first.substring(0, 1)}${parts.last.substring(0, 1)}'
+      .toUpperCase();
 }

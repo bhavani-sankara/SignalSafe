@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:phosphor_icons/phosphor_icons.dart';
 
@@ -38,81 +39,104 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
           appBar: AppBar(
             title: const Text('Community'),
             actions: [
-              TextButton.icon(
-                onPressed: () => _submit(context, ref, session),
-                icon: const Icon(PhosphorIconsRegular.plus),
-                label: const Text('Report signal'),
+              IconButton(
+                tooltip: 'Search places',
+                onPressed: () => context.push('/search'),
+                icon: const Icon(PhosphorIconsRegular.magnifyingGlass),
               ),
+              const SizedBox(width: 8),
             ],
           ),
           body: MaxWidthContent(
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
+            child: Stack(
               children: [
-                const SectionHeading(
-                  'Traveller reports',
-                  subtitle:
-                      'Shared signal checks, separate from estimated coverage.',
-                ),
-                const SectionLabel('Network'),
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: [
-                      for (final option in const [
-                        ('all', 'All networks'),
-                        ('jio', 'Jio'),
-                        ('airtel', 'Airtel'),
-                        ('vi', 'Vi'),
-                        ('bsnl', 'BSNL'),
-                      ])
-                        Padding(
-                          padding: const EdgeInsets.only(right: 8),
-                          child: FilterChip(
-                            label: Text(option.$2),
-                            selected: _operatorFilter == option.$1,
-                            selectedColor: context.palette.beacon.withValues(
-                              alpha: 0.18,
-                            ),
-                            checkmarkColor: context.palette.beacon,
-                            side: BorderSide(
-                              color: _operatorFilter == option.$1
-                                  ? context.palette.beacon
-                                  : context.palette.border,
-                            ),
-                            onSelected: (_) =>
-                                setState(() => _operatorFilter = option.$1),
-                          ),
+                ListView(
+                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Text(
+                        'Traveller reports, separate from estimated coverage',
+                        style: TextStyle(
+                          color: context.palette.muted,
+                          fontSize: 15,
                         ),
-                    ],
+                      ),
+                    ),
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          for (final option in const [
+                            ('all', 'All'),
+                            ('jio', 'Jio'),
+                            ('airtel', 'Airtel'),
+                            ('vi', 'Vi'),
+                            ('bsnl', 'BSNL'),
+                          ])
+                            Padding(
+                              padding: const EdgeInsets.only(right: 8),
+                              child: FilterChip(
+                                label: Text(option.$2),
+                                selected: _operatorFilter == option.$1,
+                                selectedColor: context.palette.beacon
+                                    .withValues(alpha: 0.18),
+                                checkmarkColor: context.palette.beacon,
+                                side: BorderSide(
+                                  color: _operatorFilter == option.$1
+                                      ? context.palette.beacon
+                                      : context.palette.border,
+                                ),
+                                showCheckmark: false,
+                                onSelected: (_) =>
+                                    setState(() => _operatorFilter = option.$1),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    const Divider(height: 1),
+                    const SizedBox(height: 4),
+                    if (reports.isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 36),
+                        child: Column(
+                          children: [
+                            Icon(
+                              PhosphorIconsRegular.broadcast,
+                              size: 32,
+                              color: context.palette.muted,
+                            ),
+                            const SizedBox(height: 12),
+                            const Text('No reports for this network yet.'),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Share a signal check to help other travellers.',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(color: context.palette.muted),
+                            ),
+                          ],
+                        ),
+                      )
+                    else
+                      for (var i = 0; i < reports.length; i++) ...[
+                        _card(context, ref, session, reports[i]),
+                        if (i < reports.length - 1) const Divider(height: 1),
+                      ],
+                  ],
+                ),
+                Positioned(
+                  right: 16,
+                  bottom: 20,
+                  child: SafeArea(
+                    top: false,
+                    child: FloatingActionButton.extended(
+                      onPressed: () => _submit(context, ref, session),
+                      icon: const Icon(PhosphorIconsRegular.plus),
+                      label: const Text('Report signal'),
+                    ),
                   ),
                 ),
-                const SizedBox(height: 8),
-                if (reports.isEmpty)
-                  Glass(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Icon(PhosphorIconsRegular.broadcast),
-                        const SizedBox(height: 8),
-                        const Text('No reports for this network yet.'),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Share a signal check to help other travellers.',
-                          style: TextStyle(color: context.palette.muted),
-                        ),
-                        const SizedBox(height: 12),
-                        FilledButton.icon(
-                          onPressed: () => _submit(context, ref, session),
-                          icon: const Icon(PhosphorIconsRegular.plus),
-                          label: const Text('Report signal'),
-                        ),
-                      ],
-                    ),
-                  )
-                else
-                  for (final report in reports)
-                    _card(context, ref, session, report),
               ],
             ),
           ),
@@ -128,82 +152,115 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
     SignalReport report,
   ) {
     final flagged = session.flaggedIds.contains(report.id);
+    final pal = context.palette;
+    final signalColor = pal.level(report.level);
     return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Glass(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          CircleAvatar(
+            radius: 24,
+            backgroundColor: signalColor.withValues(alpha: 0.16),
+            child: Icon(
+              PhosphorIconsRegular.broadcast,
+              color: signalColor,
+              size: 22,
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                SignalChip(level: report.level, compact: true),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    '${operatorLabel(report.operator)} · ${report.tech}',
-                    overflow: TextOverflow.ellipsis,
-                  ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        '${operatorLabel(report.operator)} · ${report.tech}',
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                    Text(
+                      agoLabel(report.minutesAgo),
+                      style: TextStyle(color: pal.muted, fontSize: 13),
+                    ),
+                    PopupMenuButton<String>(
+                      tooltip: 'Report options',
+                      padding: EdgeInsets.zero,
+                      icon: Icon(
+                        PhosphorIconsRegular.dotsThreeVertical,
+                        color: pal.muted,
+                      ),
+                      onSelected: (_) => _toggleFlag(ref, report, flagged),
+                      itemBuilder: (context) => [
+                        PopupMenuItem(
+                          value: 'flag',
+                          child: Text(
+                            flagged ? 'Remove flag' : 'Flag as outdated',
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 8),
-                Text(
-                  agoLabel(report.minutesAgo),
-                  style: dataStyle(context, size: 12),
-                ),
-              ],
-            ),
-            if (report.comment.isNotEmpty) ...[
-              const SizedBox(height: 10),
-              Text(
-                report.comment,
-                style: Theme.of(context).textTheme.titleSmall,
-              ),
-            ],
-            const SizedBox(height: 6),
-            Text(
-              'Reliability ${(report.agreement * 100).round()}% agreement',
-              style: TextStyle(color: context.palette.muted, fontSize: 12),
-            ),
-            if (flagged) ...[
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Icon(
-                    PhosphorIconsRegular.flag,
-                    color: context.palette.moderate,
-                    size: 16,
-                  ),
-                  const SizedBox(width: 6),
+                if (report.comment.isNotEmpty) ...[
+                  const SizedBox(height: 4),
                   Text(
-                    'Flagged as possibly outdated',
-                    style: TextStyle(color: context.palette.moderate),
+                    report.comment,
+                    style: Theme.of(context).textTheme.bodyLarge
+                        ?.copyWith(fontSize: 16),
                   ),
                 ],
-              ),
-            ],
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton.icon(
-                onPressed: () {
-                  ref.read(sessionProvider.notifier).update((s) {
-                    final next = {...s.flaggedIds};
-                    if (!next.add(report.id)) next.remove(report.id);
-                    return s.copyWith(flaggedIds: next);
-                  });
-                },
-                icon: Icon(
-                  flagged
-                      ? PhosphorIconsRegular.arrowCounterClockwise
-                      : PhosphorIconsRegular.flag,
-                  size: 18,
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 8,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    SignalChip(level: report.level, compact: true),
+                    Text(
+                      '${(report.agreement * 100).round()}% of travellers agree',
+                      style: TextStyle(color: pal.muted),
+                    ),
+                  ],
                 ),
-                label: Text(flagged ? 'Remove flag' : 'Flag as outdated'),
-              ),
+                if (flagged) ...[
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Icon(
+                        PhosphorIconsRegular.flag,
+                        color: pal.moderate,
+                        size: 16,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Flagged as possibly outdated',
+                        style: TextStyle(color: pal.moderate),
+                      ),
+                    ],
+                  ),
+                ],
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
+  }
+
+  void _toggleFlag(WidgetRef ref, SignalReport report, bool flagged) {
+    ref.read(sessionProvider.notifier).update((s) {
+      final next = {...s.flaggedIds};
+      if (flagged) {
+        next.remove(report.id);
+      } else {
+        next.add(report.id);
+      }
+      return s.copyWith(flaggedIds: next);
+    });
   }
 
   Future<void> _submit(

@@ -59,8 +59,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                         for (final spot in session.catalog.blackspots)
                           Polygon(
                             points: spot.points,
-                            color: pal.none.withValues(alpha: 0.35),
-                            borderColor: pal.weak,
+                            color: pal.good.withValues(alpha: 0.16),
+                            borderColor: pal.good.withValues(alpha: 0.55),
                             borderStrokeWidth: 1.4,
                           ),
                       ],
@@ -146,7 +146,9 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       for (var i = 0; i < slices.length; i++)
         Polyline(
           points: slices[i],
-          color: pal.level(route.segments[i].levelFor(session.operatorFilter)),
+          color: route.segments[i].levelFor(session.operatorFilter) == 'none'
+              ? pal.moderate
+              : pal.level(route.segments[i].levelFor(session.operatorFilter)),
           strokeWidth: 7,
           pattern: route.segments[i].levelFor(session.operatorFilter) == 'none'
               ? const StrokePattern.dotted()
@@ -210,7 +212,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         markers.add(
           _pin(
             place.point,
-            place.category == 'recovery' ? pal.good : pal.text,
+            _categoryColor(place.category, pal),
             categoryIcon(place.category),
             semanticLabel: place.name,
             onTap: () => _placeSheet(context, place),
@@ -284,25 +286,87 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   Widget _searchBar(BuildContext context, Session session) {
     final pal = context.palette;
     return Material(
-      color: pal.glass,
-      borderRadius: BorderRadius.circular(16),
+      color: pal.surface,
+      elevation: 3,
+      shadowColor: Colors.black.withValues(alpha: 0.12),
+      borderRadius: BorderRadius.circular(20),
+      clipBehavior: Clip.antiAlias,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 8, 6, 8),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                children: [
+                  _routeStop(
+                    context,
+                    icon: PhosphorIconsRegular.navigationArrow,
+                    color: pal.beacon,
+                    name: session.origin.name,
+                    onTap: () => context.push('/search?mode=origin'),
+                  ),
+                  Divider(
+                    height: 1,
+                    indent: 32,
+                    color: pal.border.withValues(alpha: 0.8),
+                  ),
+                  _routeStop(
+                    context,
+                    icon: PhosphorIconsRegular.mapPinLine,
+                    color: pal.sos,
+                    name: session.destination.name,
+                    onTap: () => context.push('/search?mode=destination'),
+                  ),
+                ],
+              ),
+            ),
+            IconButton(
+              tooltip: 'Swap start and destination',
+              onPressed: () => ref
+                  .read(sessionProvider.notifier)
+                  .update(
+                    (s) => s.copyWith(
+                      originId: s.destinationId,
+                      destinationId: s.originId,
+                    ),
+                  ),
+              icon: Icon(
+                PhosphorIconsRegular.arrowsLeftRight,
+                color: pal.muted,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _routeStop(
+    BuildContext context, {
+    required IconData icon,
+    required Color color,
+    required String name,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
       child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: () => context.push('/search?mode=destination'),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        onTap: onTap,
+        child: SizedBox(
+          height: 42,
           child: Row(
             children: [
-              Icon(PhosphorIconsRegular.magnifyingGlass, color: pal.muted),
-              const SizedBox(width: 10),
+              Icon(icon, size: 20, color: color),
+              const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  '${session.origin.name}  →  ${session.destination.name}',
+                  name,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    color: pal.text,
-                    fontWeight: FontWeight.w600,
+                    color: context.palette.text,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
               ),
@@ -314,42 +378,42 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   }
 
   Widget _chips(BuildContext context) {
+    final pal = context.palette;
     const items = [
-      ('hospital', 'Hospitals'),
-      ('police', 'Police'),
-      ('fuel', 'Fuel'),
-      ('hotel', 'Hotels'),
-      ('restaurant', 'Food'),
-      ('atm', 'ATMs'),
-      ('recovery', 'Recovery'),
-      ('blackspot', 'Weak signal'),
+      ('hospital', 'Hospitals', Color(0xFFE7483B)),
+      ('police', 'Police', Color(0xFF3E7BCC)),
+      ('fuel', 'Fuel', Color(0xFFE58A00)),
+      ('hotel', 'Hotels', Color(0xFF9A4DCE)),
+      ('restaurant', 'Food', Color(0xFFB9682B)),
+      ('atm', 'ATMs', Color(0xFF476B9B)),
+      ('recovery', 'Recovery', Color(0xFF16845B)),
+      ('blackspot', 'Weak signal', Color(0xFFC55D00)),
     ];
     return SizedBox(
-      height: 40,
-      child: ShaderMask(
-        blendMode: BlendMode.dstIn,
-        shaderCallback: (bounds) => const LinearGradient(
-          begin: Alignment.centerLeft,
-          end: Alignment.centerRight,
-          colors: [Colors.white, Colors.white, Colors.transparent],
-          stops: [0, 0.88, 1],
-        ).createShader(bounds),
-        child: ListView.separated(
-          scrollDirection: Axis.horizontal,
-          itemCount: items.length,
-          separatorBuilder: (_, _) => const SizedBox(width: 8),
-          itemBuilder: (context, i) {
-            final selected = _category == items[i].$1;
-            return FilterChip(
-              label: Text(items[i].$2),
-              selected: selected,
-              onSelected: (_) => setState(() {
-                _category = selected ? null : items[i].$1;
-                _essentials = true;
-              }),
-            );
-          },
-        ),
+      height: 44,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: items.length,
+        separatorBuilder: (_, _) => const SizedBox(width: 8),
+        itemBuilder: (context, i) {
+          final item = items[i];
+          final selected = _category == item.$1;
+          return FilterChip(
+            avatar: Icon(categoryIcon(item.$1), size: 18, color: item.$3),
+            label: Text(item.$2),
+            selected: selected,
+            backgroundColor: pal.surface,
+            selectedColor: pal.beacon.withValues(alpha: 0.18),
+            checkmarkColor: pal.beacon,
+            side: BorderSide(
+              color: selected ? pal.beacon : pal.border.withValues(alpha: 0.5),
+            ),
+            onSelected: (_) => setState(() {
+              _category = selected ? null : item.$1;
+              _essentials = true;
+            }),
+          );
+        },
       ),
     );
   }
@@ -357,75 +421,199 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   Widget _journeySheet(BuildContext context, Session session) {
     final pal = context.palette;
     final route = session.route;
+    final stats = route.stats[session.operatorFilter] ?? route.stats['all']!;
+    final lowSignalSegments = route.segments
+        .where(
+          (segment) =>
+              segment.levelFor(session.operatorFilter) == 'none' ||
+              segment.levelFor(session.operatorFilter) == 'weak',
+        )
+        .toList();
+    final lowSignalMinutes = lowSignalSegments.fold<int>(
+      0,
+      (total, segment) => total + segment.min,
+    );
+    final lowSignalStart = lowSignalSegments.isEmpty
+        ? null
+        : lowSignalSegments.first.label.split(' – ').first;
+    final lowSignalEnd = lowSignalSegments.isEmpty
+        ? null
+        : lowSignalSegments.last.label.split(' – ').last;
     return SafeArea(
+      bottom: false,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
         child: Align(
           alignment: Alignment.bottomCenter,
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 720),
-            child: Glass(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          route.name,
-                          style: const TextStyle(
+            child: Material(
+              color: pal.surface,
+              elevation: 10,
+              shadowColor: Colors.black.withValues(alpha: 0.16),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(28),
+                bottom: Radius.circular(24),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(18, 12, 18, 12),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 36,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: pal.border,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.baseline,
+                      textBaseline: TextBaseline.alphabetic,
+                      children: [
+                        Text(
+                          '${route.durationMin ~/ 60} h ${route.durationMin % 60} min',
+                          style: TextStyle(
+                            color: pal.beacon,
+                            fontSize: 30,
                             fontWeight: FontWeight.w700,
-                            fontSize: 16,
+                            height: 1.1,
                           ),
                         ),
-                      ),
-                      const SourceTag(source: 'estimated'),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '${route.distanceKm.toStringAsFixed(0)} km · ${formatDuration(route.durationMin)} · ${operatorLabel(session.operatorFilter)}',
-                    style: dataStyle(context, size: 13),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    route.outlook,
-                    style: TextStyle(color: pal.muted, height: 1.35),
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: FilledButton(
-                          onPressed: () {
-                            ref
-                                .read(sessionProvider.notifier)
-                                .update(
-                                  (s) => s.copyWith(
-                                    selectedRouteId: route.id,
-                                    navProgress: 0.08,
-                                  ),
-                                );
-                            context.push('/navigate');
-                          },
-                          child: const Text('Start navigation'),
+                        const SizedBox(width: 10),
+                        Text(
+                          '(${route.distanceKm.toStringAsFixed(0)} km)',
+                          style: TextStyle(color: pal.muted, fontSize: 16),
                         ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${route.name} · Estimated · '
+                      '${operatorLabel(session.operatorFilter)}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(color: pal.muted, fontSize: 14),
+                    ),
+                    const SizedBox(height: 12),
+                    Semantics(
+                      label: 'Estimated signal coverage by signal level',
+                      child: Row(
+                        children: [
+                          for (final level in const [
+                            'good',
+                            'moderate',
+                            'weak',
+                            'none',
+                          ])
+                            Expanded(
+                              flex: (stats[level] ?? 0).clamp(1, 100).toInt(),
+                              child: Container(
+                                height: 8,
+                                margin: const EdgeInsets.only(right: 2),
+                                decoration: BoxDecoration(
+                                  color: pal.level(level),
+                                  borderRadius: BorderRadius.circular(5),
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
-                      const SizedBox(width: 8),
-                      IconButton(
-                        tooltip: 'Compare routes',
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            lowSignalStart == null
+                                ? 'No weak areas'
+                                : 'From $lowSignalStart',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(color: pal.muted, fontSize: 12),
+                          ),
+                        ),
+                        Text(
+                          '$lowSignalMinutes min low/no signal',
+                          maxLines: 1,
+                          style: TextStyle(
+                            color: pal.moderate,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        Expanded(
+                          child: Text(
+                            lowSignalEnd == null ? '' : 'To $lowSignalEnd',
+                            textAlign: TextAlign.end,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(color: pal.muted, fontSize: 12),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: FilledButton.icon(
+                            onPressed: () {
+                              ref
+                                  .read(sessionProvider.notifier)
+                                  .update(
+                                    (s) => s.copyWith(
+                                      selectedRouteId: route.id,
+                                      navProgress: 0.08,
+                                    ),
+                                  );
+                              context.push('/navigate');
+                            },
+                            icon: const Icon(
+                              PhosphorIconsRegular.navigationArrow,
+                            ),
+                            label: const Text('Start navigation'),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        OutlinedButton.icon(
+                          onPressed: () => ScaffoldMessenger.of(context)
+                              .showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'Offline map downloads are not available in this demo.',
+                                  ),
+                                ),
+                              ),
+                          icon: const Icon(PhosphorIconsRegular.downloadSimple),
+                          label: const Text('Offline'),
+                        ),
+                        const SizedBox(width: 4),
+                        IconButton(
+                          tooltip: 'Pre-trip report',
+                          onPressed: () => context.push('/report'),
+                          icon: const Icon(PhosphorIconsRegular.clipboardText),
+                        ),
+                      ],
+                    ),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton.icon(
                         onPressed: () => context.push('/compare'),
-                        icon: const Icon(PhosphorIconsRegular.arrowsLeftRight),
+                        icon: const Icon(
+                          PhosphorIconsRegular.arrowsLeftRight,
+                          size: 18,
+                        ),
+                        label: const Text('Compare routes'),
                       ),
-                      IconButton(
-                        tooltip: 'Pre-trip report',
-                        onPressed: () => context.push('/report'),
-                        icon: const Icon(PhosphorIconsRegular.clipboardText),
-                      ),
-                    ],
-                  ),
-                ],
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -667,6 +855,17 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     );
   }
 }
+
+Color _categoryColor(String category, SignalPalette palette) =>
+    switch (category) {
+      'hospital' => const Color(0xFFE7483B),
+      'police' => palette.route,
+      'fuel' => const Color(0xFFE58A00),
+      'hotel' => const Color(0xFF9A4DCE),
+      'recovery' => palette.good,
+      'blackspot' => palette.moderate,
+      _ => palette.text,
+    };
 
 Color _opColor(String operator) => switch (operator) {
   'jio' => const Color(0xFF1F6BFF),

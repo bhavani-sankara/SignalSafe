@@ -11,7 +11,7 @@ class SignalSafeApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final session = ref.watch(sessionProvider);
-    final dark = session?.darkMode ?? true;
+    final dark = session?.darkMode ?? false;
     return MaterialApp.router(
       title: 'SignalSafe',
       debugShowCheckedModeBanner: false,

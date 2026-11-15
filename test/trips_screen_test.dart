@@ -11,7 +11,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Hyderabad to Srisailam – Weekend Trip'), findsOneWidget);
-    expect(find.text('Offline ready'), findsOneWidget);
+    expect(find.textContaining('Offline plan'), findsOneWidget);
     expect(find.text('Prepared offline'), findsNothing);
   });
 }

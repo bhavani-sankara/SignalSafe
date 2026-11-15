@@ -15,11 +15,11 @@ class AppShell extends StatelessWidget {
     return Scaffold(
       body: shell,
       bottomNavigationBar: NavigationBar(
-        height: 72,
-        backgroundColor: pal.surface,
-        indicatorColor: pal.beacon.withValues(alpha: 0.22),
+        height: 78,
+        backgroundColor: pal.elevated,
+        indicatorColor: pal.beacon.withValues(alpha: 0.16),
         selectedIndex: shell.currentIndex,
-        onDestinationSelected: shell.goBranch,
+        onDestinationSelected: (index) => shell.goBranch(index),
         destinations: const [
           NavigationDestination(
             icon: Icon(PhosphorIconsRegular.mapTrifold),

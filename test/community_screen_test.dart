@@ -10,13 +10,16 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    final flagButton = find.text('Flag as outdated').first;
-    await tester.ensureVisible(flagButton);
-    await tester.tap(flagButton);
+    await tester.tap(find.byType(PopupMenuButton<String>).first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Flag as outdated').first);
     await tester.pumpAndSettle();
 
     expect(find.text('Flagged as possibly outdated'), findsOneWidget);
     expect(find.text('BSNL surprisingly usable in town.'), findsOneWidget);
+
+    await tester.tap(find.byType(PopupMenuButton<String>).first);
+    await tester.pumpAndSettle();
     expect(find.text('Remove flag'), findsOneWidget);
   });
 }
