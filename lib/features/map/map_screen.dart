@@ -44,11 +44,13 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                 options: MapOptions(
                   initialCenter: session.here,
                   initialZoom: 11,
-                  onLongPress: (_, point) => _droppedPin(context, session, point),
+                  onLongPress: (_, point) =>
+                      _droppedPin(context, session, point),
                 ),
                 children: [
                   TileLayer(
-                    urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                    urlTemplate:
+                        'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                     userAgentPackageName: 'com.signalsafe.app',
                   ),
                   if (session.overlayOn && _blackspots)
@@ -72,14 +74,21 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                 ],
               ),
               SafeArea(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-                  child: Column(
-                    children: [
-                      _searchBar(context, session),
-                      const SizedBox(height: 10),
-                      _chips(context),
-                    ],
+                child: Align(
+                  alignment: Alignment.topLeft,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 680),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _searchBar(context, session),
+                          const SizedBox(height: 10),
+                          _chips(context),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -146,18 +155,24 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     ];
   }
 
-  List<Marker> _markers(BuildContext context, Session session, SignalPalette pal) {
+  List<Marker> _markers(
+    BuildContext context,
+    Session session,
+    SignalPalette pal,
+  ) {
     final markers = <Marker>[
       _pin(
         session.here,
         pal.beacon,
         PhosphorIconsFill.navigationArrow,
+        semanticLabel: 'Current location, ${session.origin.name}',
         onTap: () => _placeSheet(context, session.origin),
       ),
       _pin(
         session.destination.point,
         pal.route,
         PhosphorIconsFill.mapPin,
+        semanticLabel: 'Destination, ${session.destination.name}',
         onTap: () => _placeSheet(context, session.destination),
       ),
     ];
@@ -172,6 +187,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             tower.point,
             _opColor(tower.operator),
             PhosphorIconsFill.broadcast,
+            semanticLabel:
+                '${operatorLabel(tower.operator)} tower, ${tower.name}',
             onTap: () => _towerSheet(context, tower),
           ),
         );
@@ -195,6 +212,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             place.point,
             place.category == 'recovery' ? pal.good : pal.text,
             categoryIcon(place.category),
+            semanticLabel: place.name,
             onTap: () => _placeSheet(context, place),
           ),
         );
@@ -229,20 +247,35 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     return markers;
   }
 
-  Marker _pin(LatLng point, Color color, IconData icon, {VoidCallback? onTap}) {
+  Marker _pin(
+    LatLng point,
+    Color color,
+    IconData icon, {
+    required String semanticLabel,
+    VoidCallback? onTap,
+  }) {
     return Marker(
       point: point,
-      width: 40,
-      height: 40,
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          decoration: BoxDecoration(
-            color: color,
-            shape: BoxShape.circle,
-            border: Border.all(color: Colors.white, width: 2),
+      width: 48,
+      height: 48,
+      child: Semantics(
+        button: onTap != null,
+        label: semanticLabel,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: onTap,
+          child: Center(
+            child: Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                color: color,
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white, width: 2),
+              ),
+              child: Icon(icon, size: 15, color: const Color(0xFF06201C)),
+            ),
           ),
-          child: Icon(icon, size: 18, color: const Color(0xFF06201C)),
         ),
       ),
     );
@@ -267,7 +300,10 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                   '${session.origin.name}  →  ${session.destination.name}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: pal.text, fontWeight: FontWeight.w600),
+                  style: TextStyle(
+                    color: pal.text,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ],
@@ -290,86 +326,108 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     ];
     return SizedBox(
       height: 40,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: items.length,
-        separatorBuilder: (_, _) => const SizedBox(width: 8),
-        itemBuilder: (context, i) {
-          final selected = _category == items[i].$1;
-          return FilterChip(
-            label: Text(items[i].$2),
-            selected: selected,
-            onSelected: (_) => setState(() {
-              _category = selected ? null : items[i].$1;
-              _essentials = true;
-            }),
-          );
-        },
+      child: ShaderMask(
+        blendMode: BlendMode.dstIn,
+        shaderCallback: (bounds) => const LinearGradient(
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+          colors: [Colors.white, Colors.white, Colors.transparent],
+          stops: [0, 0.88, 1],
+        ).createShader(bounds),
+        child: ListView.separated(
+          scrollDirection: Axis.horizontal,
+          itemCount: items.length,
+          separatorBuilder: (_, _) => const SizedBox(width: 8),
+          itemBuilder: (context, i) {
+            final selected = _category == items[i].$1;
+            return FilterChip(
+              label: Text(items[i].$2),
+              selected: selected,
+              onSelected: (_) => setState(() {
+                _category = selected ? null : items[i].$1;
+                _essentials = true;
+              }),
+            );
+          },
+        ),
       ),
     );
   }
 
   Widget _journeySheet(BuildContext context, Session session) {
     final pal = context.palette;
-    final route = session.rankedRoutes().first;
-    final gap = nextGap(route, session.operatorFilter, 0);
+    final route = session.route;
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
-        child: Glass(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
+        child: Align(
+          alignment: Alignment.bottomCenter,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 720),
+            child: Glass(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: Text(
-                      route.name,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 16,
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          route.name,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 16,
+                          ),
+                        ),
                       ),
-                    ),
+                      const SourceTag(source: 'estimated'),
+                    ],
                   ),
-                  SignalChip(level: gap == null ? 'good' : 'weak', label: 'Estimated'),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${route.distanceKm.toStringAsFixed(0)} km · ${formatDuration(route.durationMin)} · ${operatorLabel(session.operatorFilter)}',
+                    style: dataStyle(context, size: 13),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    route.outlook,
+                    style: TextStyle(color: pal.muted, height: 1.35),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: FilledButton(
+                          onPressed: () {
+                            ref
+                                .read(sessionProvider.notifier)
+                                .update(
+                                  (s) => s.copyWith(
+                                    selectedRouteId: route.id,
+                                    navProgress: 0.08,
+                                  ),
+                                );
+                            context.push('/navigate');
+                          },
+                          child: const Text('Start navigation'),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      IconButton(
+                        tooltip: 'Compare routes',
+                        onPressed: () => context.push('/compare'),
+                        icon: const Icon(PhosphorIconsRegular.arrowsLeftRight),
+                      ),
+                      IconButton(
+                        tooltip: 'Pre-trip report',
+                        onPressed: () => context.push('/report'),
+                        icon: const Icon(PhosphorIconsRegular.clipboardText),
+                      ),
+                    ],
+                  ),
                 ],
               ),
-              const SizedBox(height: 4),
-              Text(
-                '${route.distanceKm.toStringAsFixed(0)} km · ${formatDuration(route.durationMin)} · ${operatorLabel(session.operatorFilter)}',
-                style: dataStyle(context, size: 13),
-              ),
-              const SizedBox(height: 6),
-              Text(route.outlook, style: TextStyle(color: pal.muted, height: 1.35)),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: FilledButton(
-                      onPressed: () {
-                        ref.read(sessionProvider.notifier).update(
-                              (s) => s.copyWith(selectedRouteId: route.id, navProgress: 0.08),
-                            );
-                        context.push('/navigate');
-                      },
-                      child: const Text('Start navigation'),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  IconButton(
-                    tooltip: 'Compare routes',
-                    onPressed: () => context.push('/compare'),
-                    icon: const Icon(PhosphorIconsRegular.arrowsLeftRight),
-                  ),
-                  IconButton(
-                    tooltip: 'Pre-trip report',
-                    onPressed: () => context.push('/report'),
-                    icon: const Icon(PhosphorIconsRegular.clipboardText),
-                  ),
-                ],
-              ),
-            ],
+            ),
           ),
         ),
       ),
@@ -392,7 +450,11 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setSheet) {
-            Widget tile(String title, bool value, ValueChanged<bool> onChanged) {
+            Widget tile(
+              String title,
+              bool value,
+              ValueChanged<bool> onChanged,
+            ) {
               return SwitchListTile(
                 title: Text(title),
                 value: value,
@@ -410,15 +472,15 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   tile('Connectivity overlay', session.overlayOn, (v) {
-                    ref.read(sessionProvider.notifier).update(
-                          (s) => s.copyWith(overlayOn: v),
-                        );
+                    ref
+                        .read(sessionProvider.notifier)
+                        .update((s) => s.copyWith(overlayOn: v));
                     session = ref.read(sessionProvider)!;
                   }),
                   tile('Community reports', session.communityLayerOn, (v) {
-                    ref.read(sessionProvider.notifier).update(
-                          (s) => s.copyWith(communityLayerOn: v),
-                        );
+                    ref
+                        .read(sessionProvider.notifier)
+                        .update((s) => s.copyWith(communityLayerOn: v));
                     session = ref.read(sessionProvider)!;
                   }),
                   tile('Mobile towers', _towers, (v) => _towers = v),
@@ -447,12 +509,15 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                 ListTile(
                   title: Text(operatorLabel(op)),
                   trailing: session.operatorFilter == op
-                      ? Icon(PhosphorIconsFill.check, color: context.palette.beacon)
+                      ? Icon(
+                          PhosphorIconsFill.check,
+                          color: context.palette.beacon,
+                        )
                       : null,
                   onTap: () {
-                    ref.read(sessionProvider.notifier).update(
-                          (s) => s.copyWith(operatorFilter: op),
-                        );
+                    ref
+                        .read(sessionProvider.notifier)
+                        .update((s) => s.copyWith(operatorFilter: op));
                     Navigator.pop(context);
                   },
                 ),
@@ -476,7 +541,10 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             children: [
               Text(place.name, style: Theme.of(context).textTheme.titleLarge),
               const SizedBox(height: 4),
-              Text(place.subtitle, style: TextStyle(color: context.palette.muted)),
+              Text(
+                place.subtitle,
+                style: TextStyle(color: context.palette.muted),
+              ),
               const SizedBox(height: 8),
               const SourceTag(source: 'estimated'),
               const SizedBox(height: 16),
@@ -589,9 +657,9 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         action: SnackBarAction(
           label: 'Use',
           onPressed: () {
-            ref.read(sessionProvider.notifier).update(
-                  (s) => s.copyWith(destinationId: nearest!.id),
-                );
+            ref
+                .read(sessionProvider.notifier)
+                .update((s) => s.copyWith(destinationId: nearest!.id));
             _map.move(nearest!.point, 13);
           },
         ),
@@ -601,9 +669,9 @@ class _MapScreenState extends ConsumerState<MapScreen> {
 }
 
 Color _opColor(String operator) => switch (operator) {
-      'jio' => const Color(0xFF1F6BFF),
-      'airtel' => const Color(0xFFE10600),
-      'vi' => const Color(0xFF7A3EAE),
-      'bsnl' => const Color(0xFFD6A100),
-      _ => const Color(0xFF6BA8FF),
-    };
+  'jio' => const Color(0xFF1F6BFF),
+  'airtel' => const Color(0xFFE10600),
+  'vi' => const Color(0xFF7A3EAE),
+  'bsnl' => const Color(0xFFD6A100),
+  _ => const Color(0xFF6BA8FF),
+};

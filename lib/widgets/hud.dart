@@ -4,6 +4,23 @@ import 'package:phosphor_icons/phosphor_icons.dart';
 
 import '../theme/app_theme.dart';
 
+class MaxWidthContent extends StatelessWidget {
+  const MaxWidthContent({super.key, required this.child, this.maxWidth = 760});
+
+  final Widget child;
+  final double maxWidth;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: maxWidth),
+        child: child,
+      ),
+    );
+  }
+}
+
 class Glass extends StatelessWidget {
   const Glass({
     super.key,
@@ -35,7 +52,7 @@ class Glass extends StatelessWidget {
           ),
         ],
       ),
-      child: child,
+      child: Material(type: MaterialType.transparency, child: child),
     );
   }
 }
@@ -56,7 +73,9 @@ class SignalChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final pal = context.palette;
     final color = pal.level(level);
-    final text = label ?? switch (level) {
+    final text =
+        label ??
+        switch (level) {
           'good' => 'Good',
           'moderate' => 'Moderate',
           'weak' => 'Weak',
@@ -142,8 +161,8 @@ class RoundIconButton extends StatelessWidget {
     final bg = sos
         ? pal.sos
         : selected
-            ? pal.beacon
-            : pal.glass;
+        ? pal.beacon
+        : pal.glass;
     final fg = sos || selected
         ? (sos ? Colors.white : const Color(0xFF06201C))
         : pal.text;
@@ -187,6 +206,39 @@ class SectionLabel extends StatelessWidget {
   }
 }
 
+class SectionHeading extends StatelessWidget {
+  const SectionHeading(this.text, {super.key, this.subtitle});
+
+  final String text;
+  final String? subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12, top: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            text,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              color: context.palette.text,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          if (subtitle != null) ...[
+            const SizedBox(height: 4),
+            Text(
+              subtitle!,
+              style: TextStyle(color: context.palette.muted, fontSize: 13),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
 IconData categoryIcon(String category) {
   return switch (category) {
     'hospital' => PhosphorIconsRegular.heartbeat,
@@ -204,12 +256,12 @@ IconData categoryIcon(String category) {
 }
 
 String operatorLabel(String id) => switch (id) {
-      'jio' => 'Jio',
-      'airtel' => 'Airtel',
-      'vi' => 'Vi',
-      'bsnl' => 'BSNL',
-      _ => 'All networks',
-    };
+  'jio' => 'Jio',
+  'airtel' => 'Airtel',
+  'vi' => 'Vi',
+  'bsnl' => 'BSNL',
+  _ => 'All networks',
+};
 
 String formatDuration(int minutes) {
   final h = minutes ~/ 60;

@@ -48,3 +48,12 @@ Light theme inverts ink/surface to `#F4F7FB` / `#FFFFFF` while keeping beacon, r
 ### Icons
 
 Phosphor, outline at rest, fill for selected tab. Never emoji.
+
+## Non-map Screens
+
+- Group related actions and settings into clear sections with sentence-case headings and short supporting copy.
+- Give route summaries and primary actions stronger hierarchy than supporting metrics.
+- Use explicit labels for signal levels and selected/ranked states; never rely on color alone.
+- Keep filters and preference choices visibly selected with the beacon accent.
+- Use empty states to explain the next useful action. State clearly when safety or offline behavior is simulated.
+- Preserve the map canvas as-is when refining surrounding navigation HUD controls.

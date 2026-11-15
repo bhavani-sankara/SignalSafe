@@ -54,9 +54,9 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen> {
       final session = ref.read(sessionProvider);
       if (session == null) return;
       final next = (session.navProgress + 0.02).clamp(0.0, 1.0);
-      ref.read(sessionProvider.notifier).update(
-            (s) => s.copyWith(navProgress: next, navActive: true),
-          );
+      ref
+          .read(sessionProvider.notifier)
+          .update((s) => s.copyWith(navProgress: next, navActive: true));
       if (next >= 1) _play(false);
       _maybeSpeak();
     });
@@ -65,7 +65,11 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen> {
   Future<void> _maybeSpeak() async {
     final session = ref.read(sessionProvider);
     if (session == null || !session.voiceOn) return;
-    final line = _turns[segmentIndex(session.route, session.navProgress).clamp(0, _turns.length - 1)];
+    final line =
+        _turns[segmentIndex(
+          session.route,
+          session.navProgress,
+        ).clamp(0, _turns.length - 1)];
     if (line == _spoken) return;
     _spoken = line;
     try {
@@ -81,19 +85,30 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen> {
         final pal = context.palette;
         final here = pointAlong(session.route.points, session.navProgress);
         final level = session.currentSegmentLevel();
-        final gap = nextGap(session.route, session.operatorFilter, session.navProgress);
+        final gap = nextGap(
+          session.route,
+          session.operatorFilter,
+          session.navProgress,
+        );
         final recovery = nextRecovery(
           session.catalog.places,
           here,
           session.destination.point,
         );
-        final remainingMin = (session.route.durationMin * (1 - session.navProgress)).round();
+        final remainingMin =
+            (session.route.durationMin * (1 - session.navProgress)).round();
         final remainKm = session.route.distanceKm * (1 - session.navProgress);
         final eta = TimeOfDay.fromDateTime(
           DateTime.now().add(Duration(minutes: remainingMin)),
         );
-        final turn = _turns[segmentIndex(session.route, session.navProgress).clamp(0, _turns.length - 1)];
-        final speed = session.simulateLoss ? 0 : 42 + (session.navProgress * 28).round();
+        final turn =
+            _turns[segmentIndex(
+              session.route,
+              session.navProgress,
+            ).clamp(0, _turns.length - 1)];
+        final speed = session.simulateLoss
+            ? 0
+            : 42 + (session.navProgress * 28).round();
         _follow(here, session.navProgress);
         return Scaffold(
           backgroundColor: pal.ink,
@@ -101,180 +116,254 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen> {
             children: [
               _navMap(session, pal, here),
               SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
+                child: MaxWidthContent(
+                  maxWidth: 760,
+                  child: Column(
                     children: [
-                      RoundIconButton(
-                        icon: PhosphorIconsRegular.x,
-                        tooltip: 'End navigation',
-                        onTap: () {
-                          _play(false);
-                          context.pop();
-                        },
-                      ),
-                      const Spacer(),
-                      Text(
-                        eta.format(context),
-                        style: dataStyle(context, size: 20, weight: FontWeight.w600),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Glass(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          turn,
-                          style: const TextStyle(
-                            fontSize: 26,
-                            fontWeight: FontWeight.w700,
-                            height: 1.15,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          session.destination.name,
-                          style: TextStyle(color: pal.muted),
-                        ),
-                        const SizedBox(height: 14),
-                        Row(
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                        child: Row(
                           children: [
-                            _stat(context, '${remainKm.toStringAsFixed(0)} km', 'Remaining'),
-                            _stat(context, formatDuration(remainingMin), 'Duration'),
-                            _stat(context, '$speed', 'km/h'),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  _timeline(context, session),
-                  const SizedBox(height: 12),
-                  Glass(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            SignalChip(level: level),
-                            const SizedBox(width: 8),
-                            Text(operatorLabel(session.preferredOperator)),
-                            const Spacer(),
-                            const SourceTag(source: 'estimated'),
-                          ],
-                        ),
-                        if (gap != null) ...[
-                          const SizedBox(height: 10),
-                          Text(
-                            'Upcoming ${gap.levelFor(session.operatorFilter) == 'none' ? 'blackspot' : 'weak stretch'}: ${gap.label}',
-                            style: const TextStyle(fontWeight: FontWeight.w600),
-                          ),
-                          Text(
-                            'About ${gap.km.toStringAsFixed(0)} km · ${formatDuration(gap.min)}',
-                            style: dataStyle(context),
-                          ),
-                        ],
-                        if (recovery != null) ...[
-                          const SizedBox(height: 8),
-                          Text(
-                            'Next recovery · ${recovery.name}',
-                            style: TextStyle(color: pal.beacon, fontWeight: FontWeight.w600),
-                          ),
-                          Text(
-                            '${(distance(here, recovery.point) / 1000).toStringAsFixed(1)} km · ${recovery.subtitle}',
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                  if (session.simulateLoss || level == 'none')
-                    Padding(
-                      padding: const EdgeInsets.only(top: 10),
-                      child: Glass(
-                        color: pal.sos.withValues(alpha: 0.16),
-                        child: const Text(
-                          'No usable signal on this stretch. SOS messages stay queued until a recovery point.',
-                        ),
-                      ),
-                    ),
-                  if (session.deviated)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 10),
-                      child: Glass(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'You left the selected route.',
-                              style: TextStyle(fontWeight: FontWeight.w700),
-                            ),
-                            const SizedBox(height: 4),
-                            const Text(
-                              'The Nagarjuna Sagar alternative adds time and keeps more recovery towns.',
-                            ),
-                            const SizedBox(height: 8),
-                            FilledButton(
-                              onPressed: () {
-                                ref.read(sessionProvider.notifier).update(
-                                      (s) => s.copyWith(
-                                        selectedRouteId: 'sagar',
-                                        deviated: false,
-                                        navProgress: 0.12,
-                                      ),
-                                    );
+                            RoundIconButton(
+                              icon: PhosphorIconsRegular.x,
+                              tooltip: 'End navigation',
+                              onTap: () {
+                                _play(false);
+                                context.pop();
                               },
-                              child: const Text('Take the better-signal route'),
+                            ),
+                            const Spacer(),
+                            Text(
+                              eta.format(context),
+                              style: dataStyle(
+                                context,
+                                size: 20,
+                                weight: FontWeight.w600,
+                              ),
                             ),
                           ],
                         ),
                       ),
-                    ),
-                  const Spacer(),
-                  Row(
-                    children: [
                       Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: () {
-                            _play(!_playing);
-                            setState(() {});
-                          },
-                          icon: Icon(_playing ? PhosphorIconsFill.pause : PhosphorIconsFill.play),
-                          label: Text(_playing ? 'Pause' : 'Drive'),
+                        child: ListView(
+                          padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                          children: [
+                            Glass(
+                              color: pal.glass,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    turn,
+                                    style: const TextStyle(
+                                      fontSize: 26,
+                                      fontWeight: FontWeight.w700,
+                                      height: 1.15,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    session.destination.name,
+                                    style: TextStyle(color: pal.muted),
+                                  ),
+                                  const SizedBox(height: 14),
+                                  Row(
+                                    children: [
+                                      _stat(
+                                        context,
+                                        '${remainKm.toStringAsFixed(0)} km',
+                                        'Remaining',
+                                      ),
+                                      _stat(
+                                        context,
+                                        formatDuration(remainingMin),
+                                        'Duration',
+                                      ),
+                                      _stat(context, '$speed', 'km/h'),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            _timeline(context, session),
+                            const SizedBox(height: 12),
+                            Glass(
+                              color: pal.glass,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      SignalChip(level: level),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          operatorLabel(
+                                            session.preferredOperator,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                      const SourceTag(source: 'estimated'),
+                                    ],
+                                  ),
+                                  if (gap != null) ...[
+                                    const SizedBox(height: 10),
+                                    Text(
+                                      'Upcoming ${gap.levelFor(session.operatorFilter) == 'none' ? 'blackspot' : 'weak stretch'}: ${gap.label}',
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    Text(
+                                      'About ${gap.km.toStringAsFixed(0)} km · ${formatDuration(gap.min)}',
+                                      style: dataStyle(context),
+                                    ),
+                                  ],
+                                  if (recovery != null) ...[
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      'Next recovery · ${recovery.name}',
+                                      style: TextStyle(
+                                        color: pal.beacon,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    Text(
+                                      '${(distance(here, recovery.point) / 1000).toStringAsFixed(1)} km · ${recovery.subtitle}',
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                            if (session.simulateLoss || level == 'none')
+                              Padding(
+                                padding: const EdgeInsets.only(top: 10),
+                                child: Glass(
+                                  color: pal.sos.withValues(alpha: 0.16),
+                                  child: const Text(
+                                    'No usable signal on this stretch. In this demo, SOS remains local and is not sent automatically.',
+                                  ),
+                                ),
+                              ),
+                            if (session.deviated)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 10),
+                                child: Glass(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      const Text(
+                                        'You left the selected route.',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      const Text(
+                                        'The Nagarjuna Sagar alternative adds time and keeps more recovery towns.',
+                                      ),
+                                      const SizedBox(height: 8),
+                                      FilledButton(
+                                        onPressed: () {
+                                          ref
+                                              .read(sessionProvider.notifier)
+                                              .update(
+                                                (s) => s.copyWith(
+                                                  selectedRouteId: 'sagar',
+                                                  deviated: false,
+                                                  navProgress: 0.12,
+                                                ),
+                                              );
+                                        },
+                                        child: const Text(
+                                          'Take the better-signal route',
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                          ],
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: () async {
-                            ref.read(sessionProvider.notifier).update(
-                                  (s) => s.copyWith(voiceOn: !s.voiceOn),
-                                );
-                            if (!session.voiceOn) await _maybeSpeak();
-                          },
-                          child: Text(session.voiceOn ? 'Voice on' : 'Voice off'),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                        child: Glass(
+                          color: pal.glass,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 6,
+                          ),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: OutlinedButton.icon(
+                                  onPressed: () {
+                                    _play(!_playing);
+                                    setState(() {});
+                                  },
+                                  icon: Icon(
+                                    _playing
+                                        ? PhosphorIconsFill.pause
+                                        : PhosphorIconsFill.play,
+                                  ),
+                                  label: Text(_playing ? 'Pause' : 'Drive'),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: OutlinedButton.icon(
+                                  onPressed: () async {
+                                    ref
+                                        .read(sessionProvider.notifier)
+                                        .update(
+                                          (s) =>
+                                              s.copyWith(voiceOn: !s.voiceOn),
+                                        );
+                                    if (!session.voiceOn) await _maybeSpeak();
+                                  },
+                                  icon: Icon(
+                                    session.voiceOn
+                                        ? PhosphorIconsRegular.speakerHigh
+                                        : PhosphorIconsRegular.speakerSlash,
+                                  ),
+                                  label: Text(
+                                    session.voiceOn ? 'Voice on' : 'Voice off',
+                                  ),
+                                ),
+                              ),
+                              PopupMenuButton<String>(
+                                tooltip: 'More navigation options',
+                                onSelected: (value) {
+                                  if (value == 'reroute_demo') {
+                                    ref
+                                        .read(sessionProvider.notifier)
+                                        .update(
+                                          (s) => s.copyWith(deviated: true),
+                                        );
+                                  }
+                                },
+                                itemBuilder: (context) => const [
+                                  PopupMenuItem(
+                                    value: 'reroute_demo',
+                                    child: Text('Try route-change demo'),
+                                  ),
+                                ],
+                                icon: const Icon(
+                                  PhosphorIconsRegular.dotsThree,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 8),
-                  SizedBox(
-                    width: double.infinity,
-                    child: TextButton(
-                      onPressed: () => ref.read(sessionProvider.notifier).update(
-                            (s) => s.copyWith(deviated: true),
-                          ),
-                      child: const Text('Simulate leaving the route'),
-                    ),
-                  ),
-                ],
+                ),
               ),
-            ),
-          ),
             ],
           ),
         );
@@ -312,7 +401,9 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen> {
               Polyline(
                 points: slices[i],
                 strokeWidth: 7,
-                color: pal.level(session.route.segments[i].levelFor(session.operatorFilter)),
+                color: pal.level(
+                  session.route.segments[i].levelFor(session.operatorFilter),
+                ),
               ),
           ],
         ),
@@ -347,8 +438,14 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(value, style: dataStyle(context, size: 22, weight: FontWeight.w600)),
-          Text(label, style: TextStyle(color: context.palette.muted, fontSize: 12)),
+          Text(
+            value,
+            style: dataStyle(context, size: 22, weight: FontWeight.w600),
+          ),
+          Text(
+            label,
+            style: TextStyle(color: context.palette.muted, fontSize: 12),
+          ),
         ],
       ),
     );
@@ -358,7 +455,10 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Connectivity', style: TextStyle(color: context.palette.muted, fontSize: 12)),
+        Text(
+          'Connectivity',
+          style: TextStyle(color: context.palette.muted, fontSize: 12),
+        ),
         const SizedBox(height: 6),
         ClipRRect(
           borderRadius: BorderRadius.circular(6),

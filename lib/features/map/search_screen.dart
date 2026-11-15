@@ -45,66 +45,127 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           appBar: AppBar(
             title: Text(settingOrigin ? 'Choose start' : 'Search'),
           ),
-          body: Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-                child: TextField(
-                  controller: _query,
-                  autofocus: true,
-                  onChanged: (_) => setState(() {}),
-                  decoration: const InputDecoration(
-                    hintText: 'Place, hospital, fuel, recovery…',
-                    prefixIcon: Icon(PhosphorIconsRegular.magnifyingGlass),
+          body: MaxWidthContent(
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                  child: TextField(
+                    controller: _query,
+                    autofocus: true,
+                    onChanged: (_) => setState(() {}),
+                    decoration: InputDecoration(
+                      labelText: 'Search places',
+                      hintText: 'Hospital, fuel, recovery…',
+                      prefixIcon: const Icon(
+                        PhosphorIconsRegular.magnifyingGlass,
+                      ),
+                      suffixIcon: _query.text.isEmpty
+                          ? null
+                          : IconButton(
+                              tooltip: 'Clear search',
+                              onPressed: () {
+                                _query.clear();
+                                setState(() {});
+                              },
+                              icon: const Icon(PhosphorIconsRegular.x),
+                            ),
+                    ),
                   ),
                 ),
-              ),
-              SizedBox(
-                height: 42,
-                child: ListView(
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  children: [
-                    for (final item in const [
-                      ('hospital', 'Hospitals'),
-                      ('police', 'Police'),
-                      ('fuel', 'Fuel'),
-                      ('hotel', 'Hotels'),
-                      ('restaurant', 'Food'),
-                      ('atm', 'ATMs'),
-                      ('recovery', 'Recovery'),
-                      ('blackspot', 'Weak signal'),
-                    ])
-                      Padding(
-                        padding: const EdgeInsets.only(right: 8),
-                        child: FilterChip(
-                          label: Text(item.$2),
-                          selected: _category == item.$1,
-                          onSelected: (_) => setState(() {
-                            _category = _category == item.$1 ? null : item.$1;
-                          }),
+                SizedBox(
+                  height: 48,
+                  child: ListView(
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    children: [
+                      for (final item in const [
+                        ('hospital', 'Hospitals'),
+                        ('police', 'Police'),
+                        ('fuel', 'Fuel'),
+                        ('hotel', 'Hotels'),
+                        ('restaurant', 'Food'),
+                        ('atm', 'ATMs'),
+                        ('recovery', 'Recovery'),
+                        ('blackspot', 'Weak signal'),
+                      ])
+                        Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: FilterChip(
+                            avatar: Icon(categoryIcon(item.$1), size: 16),
+                            label: Text(item.$2),
+                            selected: _category == item.$1,
+                            selectedColor: context.palette.beacon.withValues(
+                              alpha: 0.18,
+                            ),
+                            checkmarkColor: context.palette.beacon,
+                            side: BorderSide(
+                              color: _category == item.$1
+                                  ? context.palette.beacon
+                                  : context.palette.border,
+                            ),
+                            onSelected: (_) => setState(() {
+                              _category = _category == item.$1 ? null : item.$1;
+                            }),
+                          ),
                         ),
-                      ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-              if (q.isEmpty) _recents(session),
-              Expanded(
-                child: results.isEmpty
-                    ? Center(
-                        child: Text(
-                          'No places match that search.',
-                          style: TextStyle(color: context.palette.muted),
+                if (q.isEmpty) _recents(session),
+                Expanded(
+                  child: results.isEmpty
+                      ? Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(24),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  PhosphorIconsRegular.magnifyingGlass,
+                                  size: 32,
+                                  color: context.palette.muted,
+                                ),
+                                const SizedBox(height: 12),
+                                Text(
+                                  'No places found',
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .titleMedium,
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Try another name or clear the filters.',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    color: context.palette.muted,
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                                TextButton(
+                                  onPressed: () {
+                                    _query.clear();
+                                    setState(() => _category = null);
+                                  },
+                                  child: const Text('Clear search and filters'),
+                                ),
+                              ],
+                            ),
+                          ),
+                        )
+                      : ListView.separated(
+                          itemCount: results.length,
+                          separatorBuilder: (_, _) => const Divider(height: 1),
+                          itemBuilder: (context, i) => _tile(
+                            context,
+                            session,
+                            results[i],
+                            settingOrigin,
+                          ),
                         ),
-                      )
-                    : ListView.separated(
-                        itemCount: results.length,
-                        separatorBuilder: (_, _) => const Divider(height: 1),
-                        itemBuilder: (context, i) =>
-                            _tile(context, session, results[i], settingOrigin),
-                      ),
-              ),
-            ],
+                ),
+              ],
+            ),
           ),
         );
       },
@@ -138,7 +199,12 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     );
   }
 
-  Widget _tile(BuildContext context, Session session, Place place, bool origin) {
+  Widget _tile(
+    BuildContext context,
+    Session session,
+    Place place,
+    bool origin,
+  ) {
     return ListTile(
       leading: Icon(categoryIcon(place.category)),
       title: Text(place.name),
