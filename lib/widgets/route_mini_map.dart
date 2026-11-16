@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart' show LatLng;
 
 import '../core/geo.dart';
@@ -38,18 +39,114 @@ class RouteMiniMap extends StatelessWidget {
         child: SizedBox(
           height: height,
           width: double.infinity,
-          child: CustomPaint(
-            painter: _MiniMapPainter(
-              route: route,
-              others: context.where((r) => r.id != route.id).toList(),
-              operator: operator,
-              pal: pal,
-              dark: dark,
-              padding: padding,
-            ),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              // Quiet placeholder texture, visible while tiles load or offline.
+              CustomPaint(
+                painter: _MiniMapPainter(
+                  route: route,
+                  others: const [],
+                  operator: operator,
+                  pal: pal,
+                  dark: dark,
+                  padding: padding,
+                  drawRoutes: false,
+                ),
+              ),
+              IgnorePointer(child: _osm(pal, dark)),
+            ],
           ),
         ),
       ),
+    );
+  }
+}
+
+extension on RouteMiniMap {
+  /// Live OpenStreetMap preview, fitted to the route and its alternatives.
+  Widget _osm(SignalPalette pal, bool dark) {
+    final others = context.where((r) => r.id != route.id).toList();
+    final all = [...route.points, for (final r in others) ...r.points];
+    if (route.points.length < 2) return const SizedBox.shrink();
+    final slices = splitByWeight(
+      route.points,
+      route.segments.map((s) => s.km).toList(),
+    );
+    final casing = dark ? const Color(0xFF0E1412) : Colors.white;
+    return FlutterMap(
+      key: ValueKey('${route.id}-$operator-$dark'),
+      options: MapOptions(
+        initialCameraFit: CameraFit.bounds(
+          bounds: LatLngBounds.fromPoints(all),
+          padding: padding,
+        ),
+        interactionOptions: const InteractionOptions(
+          flags: InteractiveFlag.none,
+        ),
+        backgroundColor: Colors.transparent,
+      ),
+      children: [
+        TileLayer(
+          urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+          userAgentPackageName: 'com.signalsafe.app',
+          tileBuilder: dark ? darkModeTileBuilder : null,
+        ),
+        PolylineLayer(
+          polylines: [
+            for (final other in others)
+              if (other.points.length > 1)
+                Polyline(
+                  points: other.points,
+                  color: pal.outline.withValues(alpha: 0.55),
+                  strokeWidth: 3,
+                ),
+            Polyline(points: route.points, color: casing, strokeWidth: 8),
+            for (var i = 0; i < slices.length && i < route.segments.length; i++)
+              if (slices[i].length > 1)
+                Polyline(
+                  points: slices[i],
+                  color: pal.levelFill(route.segments[i].levelFor(operator)),
+                  strokeWidth: 5,
+                ),
+          ],
+        ),
+        MarkerLayer(
+          markers: [
+            Marker(
+              point: route.points.first,
+              width: 16,
+              height: 16,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: pal.beacon,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 3),
+                ),
+              ),
+            ),
+            Marker(
+              point: route.points.last,
+              width: 20,
+              height: 20,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: pal.destination,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 4),
+                  boxShadow: const [
+                    BoxShadow(color: Colors.black26, blurRadius: 4),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SimpleAttributionWidget(
+          source: Text('OpenStreetMap'),
+          backgroundColor: Colors.transparent,
+        ),
+      ],
     );
   }
 }
@@ -62,8 +159,10 @@ class _MiniMapPainter extends CustomPainter {
     required this.pal,
     required this.dark,
     required this.padding,
+    this.drawRoutes = true,
   });
 
+  final bool drawRoutes;
   final JourneyRoute route;
   final List<JourneyRoute> others;
   final String operator;
@@ -123,6 +222,8 @@ class _MiniMapPainter extends CustomPainter {
         );
       canvas.drawPath(p, minor);
     }
+
+    if (!drawRoutes) return;
 
     // Projection fitted to all routes so alternatives stay in frame.
     final all = [route, ...others].expand((r) => r.points).toList();
