@@ -951,7 +951,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       ),
       SliverList.builder(
         itemCount: route.segments.length,
-        itemBuilder: (context, i) => _SegmentRow(
+        itemBuilder: (context, i) => SegmentRow(
           segment: route.segments[i],
           level: route.segments[i].levelFor(session.operatorFilter),
           first: i == 0,
@@ -1458,90 +1458,6 @@ class _ActionPill extends StatelessWidget {
       ),
       icon: Icon(icon, size: 18),
       label: Text(label),
-    );
-  }
-}
-
-class _SegmentRow extends StatelessWidget {
-  const _SegmentRow({
-    required this.segment,
-    required this.level,
-    required this.first,
-    required this.last,
-  });
-
-  final RouteSegment segment;
-  final String level;
-  final bool first;
-  final bool last;
-
-  @override
-  Widget build(BuildContext context) {
-    final pal = context.palette;
-    final color = pal.level(level);
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: IntrinsicHeight(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            SizedBox(
-              width: 20,
-              child: Column(
-                children: [
-                  Expanded(
-                    child: Container(
-                      width: 3,
-                      color: first ? Colors.transparent : pal.border,
-                    ),
-                  ),
-                  Container(
-                    width: 12,
-                    height: 12,
-                    decoration: BoxDecoration(
-                      color: color,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: pal.surface, width: 2),
-                    ),
-                  ),
-                  Expanded(
-                    child: Container(
-                      width: 3,
-                      color: last ? Colors.transparent : pal.border,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 10),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      segment.label,
-                      style: TextStyle(
-                        color: pal.text,
-                        fontWeight: FontWeight.w500,
-                        fontSize: 14,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      '${segment.km.toStringAsFixed(0)} km · ${formatDuration(segment.min)}',
-                      style: TextStyle(color: pal.muted, fontSize: 12.5),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            Center(child: SignalChip(level: level, compact: true)),
-          ],
-        ),
-      ),
     );
   }
 }

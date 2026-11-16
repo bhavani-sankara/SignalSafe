@@ -5,7 +5,9 @@ import 'package:phosphor_icons/phosphor_icons.dart';
 
 import '../../core/session.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/frosted.dart';
 import '../../widgets/hud.dart';
+import '../../widgets/route_mini_map.dart';
 import '../../widgets/session_gate.dart';
 
 class TripDetailScreen extends ConsumerWidget {
@@ -28,6 +30,9 @@ class TripDetailScreen extends ConsumerWidget {
         final route = session.catalog.routeById(trip.routeId);
         final origin = session.catalog.place(trip.originId);
         final destination = session.catalog.place(trip.destinationId);
+        final pal = context.palette;
+        final stats =
+            route.stats[session.operatorFilter] ?? route.stats['all']!;
         return Scaffold(
           appBar: AppBar(
             title: const Text('Journey'),
@@ -44,73 +49,162 @@ class TripDetailScreen extends ConsumerWidget {
               ),
             ],
           ),
+          bottomNavigationBar: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+              child: Center(
+                heightFactor: 1,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 760),
+                  child: FilledButton.icon(
+                    style: FilledButton.styleFrom(
+                      minimumSize: const Size.fromHeight(54),
+                    ),
+                    onPressed: () {
+                      ref
+                          .read(sessionProvider.notifier)
+                          .update(
+                            (s) => s.copyWith(
+                              selectedRouteId: trip.routeId,
+                              originId: trip.originId,
+                              destinationId: trip.destinationId,
+                              navProgress: 0.05,
+                            ),
+                          );
+                      context.push('/navigate');
+                    },
+                    icon: const Icon(PhosphorIconsFill.navigationArrow),
+                    label: const Text('Start navigation'),
+                  ),
+                ),
+              ),
+            ),
+          ),
           body: MaxWidthContent(
             child: ListView(
               padding: const EdgeInsets.all(16),
               children: [
-                Glass(
-                  color: context.palette.elevated,
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(28),
+                  child: Hero(
+                    tag: 'trip-map-${trip.id}',
+                    child: RouteMiniMap(
+                      route: route,
+                      context: session.catalog.routes,
+                      operator: session.operatorFilter,
+                      height: 200,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         trip.name,
-                        style: Theme.of(context).textTheme.headlineSmall,
+                        style: Theme.of(context).textTheme.headlineSmall
+                            ?.copyWith(fontWeight: FontWeight.w600),
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 6),
                       Text(
                         '${origin.name} to ${destination.name}',
-                        style: Theme.of(context).textTheme.titleSmall,
+                        style: TextStyle(color: pal.text, fontSize: 15),
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 2),
                       Text(
-                        route.via,
-                        style: TextStyle(color: context.palette.muted),
+                        'via ${route.via}',
+                        style: TextStyle(color: pal.muted, fontSize: 13),
                       ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    _StatTile(
+                      label: 'Distance',
+                      value: '${route.distanceKm.toStringAsFixed(0)} km',
+                      icon: PhosphorIconsRegular.ruler,
+                    ),
+                    const SizedBox(width: 10),
+                    _StatTile(
+                      label: 'Drive time',
+                      value: formatDuration(route.durationMin),
+                      icon: PhosphorIconsRegular.clock,
+                    ),
+                    const SizedBox(width: 10),
+                    _StatTile(
+                      label: 'Signal score',
+                      value: '${route.connectivityScore}',
+                      icon: PhosphorIconsRegular.cellSignalHigh,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: pal.surface,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      CoverageStrip(stats: stats, height: 8),
                       const SizedBox(height: 12),
-                      Text(
-                        '${route.distanceKm.toStringAsFixed(0)} km · '
-                        '${formatDuration(route.durationMin)} · '
-                        'score ${route.connectivityScore}',
-                        style: dataStyle(context, size: 16),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(
+                            PhosphorIconsRegular.info,
+                            size: 18,
+                            color: pal.muted,
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              route.outlook,
+                              style: TextStyle(color: pal.text, height: 1.4),
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 8),
-                      Text(route.outlook),
                       const SizedBox(height: 8),
                       const SourceTag(source: 'estimated'),
                     ],
                   ),
                 ),
-                const SectionHeading('Signal by route segment'),
-                for (final segment in route.segments)
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: Text(segment.label),
-                    subtitle: Text(
-                      '${segment.km.toStringAsFixed(0)} km · '
-                      '${formatDuration(segment.min)}',
-                    ),
-                    trailing: SignalChip(
-                      level: segment.levelFor(session.operatorFilter),
-                      compact: true,
-                    ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(4, 24, 4, 8),
+                  child: Text(
+                    'Signal by route segment',
+                    style: Theme.of(context).textTheme.titleMedium
+                        ?.copyWith(fontWeight: FontWeight.w600),
                   ),
-                FilledButton(
-                  onPressed: () {
-                    ref
-                        .read(sessionProvider.notifier)
-                        .update(
-                          (s) => s.copyWith(
-                            selectedRouteId: trip.routeId,
-                            originId: trip.originId,
-                            destinationId: trip.destinationId,
-                            navProgress: 0.05,
-                          ),
-                        );
-                    context.push('/navigate');
-                  },
-                  child: const Text('Start navigation'),
                 ),
+                Container(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  decoration: BoxDecoration(
+                    color: pal.surface,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Column(
+                    children: [
+                      for (var i = 0; i < route.segments.length; i++)
+                        SegmentRow(
+                          segment: route.segments[i],
+                          level: route.segments[i].levelFor(
+                            session.operatorFilter,
+                          ),
+                          first: i == 0,
+                          last: i == route.segments.length - 1,
+                        ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 96),
               ],
             ),
           ),
@@ -191,5 +285,47 @@ class TripDetailScreen extends ConsumerWidget {
           ),
         );
     if (context.mounted) context.pop();
+  }
+}
+
+class _StatTile extends StatelessWidget {
+  const _StatTile({
+    required this.label,
+    required this.value,
+    required this.icon,
+  });
+
+  final String label;
+  final String value;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    final pal = context.palette;
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+        decoration: BoxDecoration(
+          color: pal.surface,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, size: 18, color: pal.beacon),
+            const SizedBox(height: 8),
+            Text(
+              value,
+              style: TextStyle(
+                color: pal.text,
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            Text(label, style: TextStyle(color: pal.muted, fontSize: 12)),
+          ],
+        ),
+      ),
+    );
   }
 }

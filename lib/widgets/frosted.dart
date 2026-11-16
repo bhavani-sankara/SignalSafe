@@ -2,7 +2,9 @@ import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
 
+import '../core/models.dart';
 import '../theme/app_theme.dart';
+import 'hud.dart';
 
 /// Shared motion language. Every animated surface in the app should pull its
 /// timing from here so transitions feel like one system.
@@ -94,7 +96,10 @@ class Frosted extends StatelessWidget {
                     )
                   : null,
             ),
-            child: Padding(padding: padding, child: child),
+            child: Material(
+              type: MaterialType.transparency,
+              child: Padding(padding: padding, child: child),
+            ),
           ),
         ),
       ),
@@ -192,12 +197,98 @@ class CoverageStrip extends StatelessWidget {
                       flex: stats[level]!,
                       child: Container(
                         margin: const EdgeInsets.only(right: 2),
-                        color: pal.level(level),
+                        color: pal.levelFill(level),
                       ),
                     ),
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// One stop on a route's signal timeline.
+class SegmentRow extends StatelessWidget {
+  const SegmentRow({
+    super.key,
+    required this.segment,
+    required this.level,
+    required this.first,
+    required this.last,
+  });
+
+  final RouteSegment segment;
+  final String level;
+  final bool first;
+  final bool last;
+
+  @override
+  Widget build(BuildContext context) {
+    final pal = context.palette;
+    final color = pal.levelFill(level);
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            SizedBox(
+              width: 20,
+              child: Column(
+                children: [
+                  Expanded(
+                    child: Container(
+                      width: 3,
+                      color: first ? Colors.transparent : pal.border,
+                    ),
+                  ),
+                  Container(
+                    width: 12,
+                    height: 12,
+                    decoration: BoxDecoration(
+                      color: color,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: pal.surface, width: 2),
+                    ),
+                  ),
+                  Expanded(
+                    child: Container(
+                      width: 3,
+                      color: last ? Colors.transparent : pal.border,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      segment.label,
+                      style: TextStyle(
+                        color: pal.text,
+                        fontWeight: FontWeight.w500,
+                        fontSize: 14,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${segment.km.toStringAsFixed(0)} km · ${formatDuration(segment.min)}',
+                      style: TextStyle(color: pal.muted, fontSize: 12.5),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            Center(child: SignalChip(level: level, compact: true)),
+          ],
         ),
       ),
     );

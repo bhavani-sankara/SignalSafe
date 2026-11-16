@@ -122,6 +122,14 @@ class SignalPalette {
     _ => none,
   };
 
+  /// Bright fill for bars, strips and route lines (not for text).
+  Color levelFill(String level) => switch (level) {
+    'good' => route,
+    'moderate' => const Color(0xFFE0A100),
+    'weak' => const Color(0xFFE07A00),
+    _ => const Color(0xFF9AA3A0),
+  };
+
   Color levelContainer(String level) => switch (level) {
     'good' => successContainer,
     'moderate' || 'weak' => warningContainer,
@@ -199,6 +207,16 @@ class AppTheme {
     );
     return base.copyWith(
       scaffoldBackgroundColor: pal.ink,
+      pageTransitionsTheme: const PageTransitionsTheme(
+        builders: {
+          TargetPlatform.android: FadeForwardsPageTransitionsBuilder(),
+          TargetPlatform.iOS: FadeForwardsPageTransitionsBuilder(),
+          TargetPlatform.macOS: FadeForwardsPageTransitionsBuilder(),
+          TargetPlatform.windows: FadeForwardsPageTransitionsBuilder(),
+          TargetPlatform.linux: FadeForwardsPageTransitionsBuilder(),
+          TargetPlatform.fuchsia: FadeForwardsPageTransitionsBuilder(),
+        },
+      ),
       colorScheme: scheme,
       textTheme: textTheme,
       dividerColor: pal.border,
