@@ -39,9 +39,10 @@ List<List<LatLng>> splitByWeight(List<LatLng> points, List<double> weights) {
 
 int segmentIndex(JourneyRoute route, double progress) {
   if (route.segments.isEmpty) return 0;
-  return (progress * route.segments.length)
-      .floor()
-      .clamp(0, route.segments.length - 1);
+  return (progress * route.segments.length).floor().clamp(
+    0,
+    route.segments.length - 1,
+  );
 }
 
 RouteSegment? nextGap(JourneyRoute route, String operator, double progress) {

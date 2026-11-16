@@ -20,31 +20,43 @@ final routerProvider = Provider<GoRouter>((ref) {
       StatefulShellRoute.indexedStack(
         builder: (context, state, shell) => AppShell(shell: shell),
         branches: [
-          StatefulShellBranch(routes: [
-            GoRoute(path: '/map', builder: (c, s) => const MapScreen()),
-          ]),
-          StatefulShellBranch(routes: [
-            GoRoute(path: '/trips', builder: (c, s) => const TripsScreen()),
-          ]),
-          StatefulShellBranch(routes: [
-            GoRoute(path: '/safety', builder: (c, s) => const SafetyScreen()),
-          ]),
-          StatefulShellBranch(routes: [
-            GoRoute(
-              path: '/community',
-              builder: (c, s) => const CommunityScreen(),
-            ),
-          ]),
-          StatefulShellBranch(routes: [
-            GoRoute(path: '/profile', builder: (c, s) => const ProfileScreen()),
-          ]),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(path: '/map', builder: (c, s) => const MapScreen()),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(path: '/trips', builder: (c, s) => const TripsScreen()),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(path: '/safety', builder: (c, s) => const SafetyScreen()),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/community',
+                builder: (c, s) => const CommunityScreen(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/profile',
+                builder: (c, s) => const ProfileScreen(),
+              ),
+            ],
+          ),
         ],
       ),
       GoRoute(
         path: '/search',
-        builder: (c, s) => SearchScreen(
-          mode: s.uri.queryParameters['mode'] ?? 'destination',
-        ),
+        builder: (c, s) =>
+            SearchScreen(mode: s.uri.queryParameters['mode'] ?? 'destination'),
       ),
       GoRoute(path: '/report', builder: (c, s) => const ReportScreen()),
       GoRoute(path: '/compare', builder: (c, s) => const CompareScreen()),

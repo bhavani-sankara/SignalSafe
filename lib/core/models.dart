@@ -16,15 +16,15 @@ class Place {
   final String subtitle;
 
   factory Place.fromJson(Map<String, dynamic> json) => Place(
-        id: json['id'] as String,
-        name: json['name'] as String,
-        category: json['category'] as String,
-        point: LatLng(
-          (json['lat'] as num).toDouble(),
-          (json['lng'] as num).toDouble(),
-        ),
-        subtitle: json['subtitle'] as String? ?? '',
-      );
+    id: json['id'] as String,
+    name: json['name'] as String,
+    category: json['category'] as String,
+    point: LatLng(
+      (json['lat'] as num).toDouble(),
+      (json['lng'] as num).toDouble(),
+    ),
+    subtitle: json['subtitle'] as String? ?? '',
+  );
 }
 
 class Tower {
@@ -47,17 +47,17 @@ class Tower {
   final String detail;
 
   factory Tower.fromJson(Map<String, dynamic> json) => Tower(
-        id: json['id'] as String,
-        name: json['name'] as String,
-        operator: json['operator'] as String,
-        tech: json['tech'] as String,
-        point: LatLng(
-          (json['lat'] as num).toDouble(),
-          (json['lng'] as num).toDouble(),
-        ),
-        source: json['source'] as String,
-        detail: json['detail'] as String,
-      );
+    id: json['id'] as String,
+    name: json['name'] as String,
+    operator: json['operator'] as String,
+    tech: json['tech'] as String,
+    point: LatLng(
+      (json['lat'] as num).toDouble(),
+      (json['lng'] as num).toDouble(),
+    ),
+    source: json['source'] as String,
+    detail: json['detail'] as String,
+  );
 }
 
 class Blackspot {
@@ -78,15 +78,15 @@ class Blackspot {
   final List<LatLng> points;
 
   factory Blackspot.fromJson(Map<String, dynamic> json) => Blackspot(
-        id: json['id'] as String,
-        name: json['name'] as String,
-        lengthKm: (json['lengthKm'] as num).toDouble(),
-        durationMin: json['durationMin'] as int,
-        warning: json['warning'] as String,
-        points: (json['points'] as List)
-            .map((e) => LatLng((e[0] as num).toDouble(), (e[1] as num).toDouble()))
-            .toList(),
-      );
+    id: json['id'] as String,
+    name: json['name'] as String,
+    lengthKm: (json['lengthKm'] as num).toDouble(),
+    durationMin: json['durationMin'] as int,
+    warning: json['warning'] as String,
+    points: (json['points'] as List)
+        .map((e) => LatLng((e[0] as num).toDouble(), (e[1] as num).toDouble()))
+        .toList(),
+  );
 }
 
 class RouteSegment {
@@ -103,15 +103,16 @@ class RouteSegment {
   final Map<String, String> levels;
 
   factory RouteSegment.fromJson(Map<String, dynamic> json) => RouteSegment(
-        label: json['label'] as String,
-        km: (json['km'] as num).toDouble(),
-        min: json['min'] as int,
-        levels: (json['levels'] as Map).map(
-          (k, v) => MapEntry(k.toString(), v.toString()),
-        ),
-      );
+    label: json['label'] as String,
+    km: (json['km'] as num).toDouble(),
+    min: json['min'] as int,
+    levels: (json['levels'] as Map).map(
+      (k, v) => MapEntry(k.toString(), v.toString()),
+    ),
+  );
 
-  String levelFor(String operator) => levels[operator] ?? levels['all'] ?? 'none';
+  String levelFor(String operator) =>
+      levels[operator] ?? levels['all'] ?? 'none';
 }
 
 class JourneyRoute {
@@ -142,29 +143,29 @@ class JourneyRoute {
   final Map<String, Map<String, int>> stats;
 
   factory JourneyRoute.fromJson(Map<String, dynamic> json) => JourneyRoute(
-        id: json['id'] as String,
-        name: json['name'] as String,
-        via: json['via'] as String,
-        distanceKm: (json['distanceKm'] as num).toDouble(),
-        durationMin: json['durationMin'] as int,
-        connectivityScore: json['connectivityScore'] as int,
-        recommended: json['recommended'] as bool? ?? false,
-        outlook: json['outlook'] as String,
-        points: (json['points'] as List)
-            .map((e) => LatLng((e[0] as num).toDouble(), (e[1] as num).toDouble()))
-            .toList(),
-        segments: (json['segments'] as List)
-            .map((e) => RouteSegment.fromJson(e as Map<String, dynamic>))
-            .toList(),
-        stats: (json['stats'] as Map).map(
-          (k, v) => MapEntry(
-            k.toString(),
-            (v as Map).map(
-              (sk, sv) => MapEntry(sk.toString(), (sv as num).toInt()),
-            ),
-          ),
+    id: json['id'] as String,
+    name: json['name'] as String,
+    via: json['via'] as String,
+    distanceKm: (json['distanceKm'] as num).toDouble(),
+    durationMin: json['durationMin'] as int,
+    connectivityScore: json['connectivityScore'] as int,
+    recommended: json['recommended'] as bool? ?? false,
+    outlook: json['outlook'] as String,
+    points: (json['points'] as List)
+        .map((e) => LatLng((e[0] as num).toDouble(), (e[1] as num).toDouble()))
+        .toList(),
+    segments: (json['segments'] as List)
+        .map((e) => RouteSegment.fromJson(e as Map<String, dynamic>))
+        .toList(),
+    stats: (json['stats'] as Map).map(
+      (k, v) => MapEntry(
+        k.toString(),
+        (v as Map).map(
+          (sk, sv) => MapEntry(sk.toString(), (sv as num).toInt()),
         ),
-      );
+      ),
+    ),
+  );
 }
 
 class SignalReport {
@@ -189,29 +190,29 @@ class SignalReport {
   final double agreement;
 
   factory SignalReport.fromJson(Map<String, dynamic> json) => SignalReport(
-        id: json['id'] as String,
-        point: LatLng(
-          (json['lat'] as num).toDouble(),
-          (json['lng'] as num).toDouble(),
-        ),
-        level: json['level'] as String,
-        operator: json['operator'] as String,
-        tech: json['tech'] as String,
-        comment: json['comment'] as String? ?? '',
-        minutesAgo: json['minutesAgo'] as int? ?? 0,
-        agreement: (json['agreement'] as num?)?.toDouble() ?? 0.5,
-      );
+    id: json['id'] as String,
+    point: LatLng(
+      (json['lat'] as num).toDouble(),
+      (json['lng'] as num).toDouble(),
+    ),
+    level: json['level'] as String,
+    operator: json['operator'] as String,
+    tech: json['tech'] as String,
+    comment: json['comment'] as String? ?? '',
+    minutesAgo: json['minutesAgo'] as int? ?? 0,
+    agreement: (json['agreement'] as num?)?.toDouble() ?? 0.5,
+  );
 
   SignalReport copyWith({int? minutesAgo}) => SignalReport(
-        id: id,
-        point: point,
-        level: level,
-        operator: operator,
-        tech: tech,
-        comment: comment,
-        minutesAgo: minutesAgo ?? this.minutesAgo,
-        agreement: agreement,
-      );
+    id: id,
+    point: point,
+    level: level,
+    operator: operator,
+    tech: tech,
+    comment: comment,
+    minutesAgo: minutesAgo ?? this.minutesAgo,
+    agreement: agreement,
+  );
 }
 
 class SafetyAlert {
@@ -228,11 +229,11 @@ class SafetyAlert {
   final String body;
 
   factory SafetyAlert.fromJson(Map<String, dynamic> json) => SafetyAlert(
-        id: json['id'] as String,
-        severity: json['severity'] as String,
-        title: json['title'] as String,
-        body: json['body'] as String,
-      );
+    id: json['id'] as String,
+    severity: json['severity'] as String,
+    title: json['title'] as String,
+    body: json['body'] as String,
+  );
 }
 
 class Catalog {
@@ -265,39 +266,36 @@ class Catalog {
   final List<Map<String, String>> savedPlaces;
 
   factory Catalog.fromJson(Map<String, dynamic> json) => Catalog(
-        userName: json['user']['name'] as String,
-        userHandle: json['user']['handle'] as String,
-        preferredOperator: json['user']['preferredOperator'] as String,
-        currentLocation: LatLng(
-          (json['currentLocation'][0] as num).toDouble(),
-          (json['currentLocation'][1] as num).toDouble(),
-        ),
-        places: (json['places'] as List)
-            .map((e) => Place.fromJson(e as Map<String, dynamic>))
-            .toList(),
-        towers: (json['towers'] as List)
-            .map((e) => Tower.fromJson(e as Map<String, dynamic>))
-            .toList(),
-        blackspots: (json['blackspots'] as List)
-            .map((e) => Blackspot.fromJson(e as Map<String, dynamic>))
-            .toList(),
-        routes: (json['routes'] as List)
-            .map((e) => JourneyRoute.fromJson(e as Map<String, dynamic>))
-            .toList(),
-        reports: (json['reports'] as List)
-            .map((e) => SignalReport.fromJson(e as Map<String, dynamic>))
-            .toList(),
-        alerts: (json['alerts'] as List)
-            .map((e) => SafetyAlert.fromJson(e as Map<String, dynamic>))
-            .toList(),
-        instructions: (json['instructions'] as List).cast<String>(),
-        savedPlaces: (json['savedPlaces'] as List)
-            .map((e) => {
-                  'id': e['id'] as String,
-                  'label': e['label'] as String,
-                })
-            .toList(),
-      );
+    userName: json['user']['name'] as String,
+    userHandle: json['user']['handle'] as String,
+    preferredOperator: json['user']['preferredOperator'] as String,
+    currentLocation: LatLng(
+      (json['currentLocation'][0] as num).toDouble(),
+      (json['currentLocation'][1] as num).toDouble(),
+    ),
+    places: (json['places'] as List)
+        .map((e) => Place.fromJson(e as Map<String, dynamic>))
+        .toList(),
+    towers: (json['towers'] as List)
+        .map((e) => Tower.fromJson(e as Map<String, dynamic>))
+        .toList(),
+    blackspots: (json['blackspots'] as List)
+        .map((e) => Blackspot.fromJson(e as Map<String, dynamic>))
+        .toList(),
+    routes: (json['routes'] as List)
+        .map((e) => JourneyRoute.fromJson(e as Map<String, dynamic>))
+        .toList(),
+    reports: (json['reports'] as List)
+        .map((e) => SignalReport.fromJson(e as Map<String, dynamic>))
+        .toList(),
+    alerts: (json['alerts'] as List)
+        .map((e) => SafetyAlert.fromJson(e as Map<String, dynamic>))
+        .toList(),
+    instructions: (json['instructions'] as List).cast<String>(),
+    savedPlaces: (json['savedPlaces'] as List)
+        .map((e) => {'id': e['id'] as String, 'label': e['label'] as String})
+        .toList(),
+  );
 
   Place place(String id) => places.firstWhere((p) => p.id == id);
 
@@ -347,14 +345,14 @@ class SavedTrip {
   final String kind;
 
   SavedTrip copyWith({String? name, bool? offlinePrepared}) => SavedTrip(
-        id: id,
-        name: name ?? this.name,
-        routeId: routeId,
-        originId: originId,
-        destinationId: destinationId,
-        offlinePrepared: offlinePrepared ?? this.offlinePrepared,
-        kind: kind,
-      );
+    id: id,
+    name: name ?? this.name,
+    routeId: routeId,
+    originId: originId,
+    destinationId: destinationId,
+    offlinePrepared: offlinePrepared ?? this.offlinePrepared,
+    kind: kind,
+  );
 }
 
 class NotifyPrefs {
@@ -375,11 +373,10 @@ class NotifyPrefs {
     bool? lossRestore,
     bool? recovery,
     bool? safety,
-  }) =>
-      NotifyPrefs(
-        blackspots: blackspots ?? this.blackspots,
-        lossRestore: lossRestore ?? this.lossRestore,
-        recovery: recovery ?? this.recovery,
-        safety: safety ?? this.safety,
-      );
+  }) => NotifyPrefs(
+    blackspots: blackspots ?? this.blackspots,
+    lossRestore: lossRestore ?? this.lossRestore,
+    recovery: recovery ?? this.recovery,
+    safety: safety ?? this.safety,
+  );
 }

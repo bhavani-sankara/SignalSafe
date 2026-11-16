@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart' show PointerDeviceKind;
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,6 +10,7 @@ import '../../core/geo.dart';
 import '../../core/models.dart';
 import '../../core/session.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/frosted.dart';
 import '../../widgets/hud.dart';
 import '../../widgets/session_gate.dart';
 
@@ -26,6 +28,15 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   bool _essentials = true;
   bool _blackspots = true;
   bool _fitted = false;
+  final _sheet = DraggableScrollableController();
+  final _extent = ValueNotifier<double>(0);
+
+  @override
+  void dispose() {
+    _sheet.dispose();
+    _extent.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -37,106 +48,202 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         }
         final pal = context.palette;
         return Scaffold(
-          body: Stack(
-            children: [
-              FlutterMap(
-                mapController: _map,
-                options: MapOptions(
-                  initialCenter: session.here,
-                  initialZoom: 11,
-                  onLongPress: (_, point) =>
-                      _droppedPin(context, session, point),
-                ),
+          body: LayoutBuilder(
+            builder: (context, box) {
+              final height = box.maxHeight;
+              if (_extent.value == 0) _extent.value = _peekSize(height);
+              return Stack(
                 children: [
-                  TileLayer(
-                    urlTemplate:
-                        'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                    userAgentPackageName: 'com.signalsafe.app',
-                  ),
-                  if (session.overlayOn && _blackspots)
-                    PolygonLayer(
-                      polygons: [
-                        for (final spot in session.catalog.blackspots)
-                          Polygon(
-                            points: spot.points,
-                            color: pal.good.withValues(alpha: 0.16),
-                            borderColor: pal.good.withValues(alpha: 0.55),
-                            borderStrokeWidth: 1.4,
-                          ),
-                      ],
+                  FlutterMap(
+                    mapController: _map,
+                    options: MapOptions(
+                      initialCenter: session.here,
+                      initialZoom: 11,
+                      onLongPress: (_, point) =>
+                          _droppedPin(context, session, point),
                     ),
-                  if (session.overlayOn)
-                    PolylineLayer(polylines: _ribbons(session, pal)),
-                  MarkerLayer(markers: _markers(context, session, pal)),
-                  const RichAttributionWidget(
-                    attributions: [TextSourceAttribution('OpenStreetMap')],
+                    children: [
+                      TileLayer(
+                        urlTemplate:
+                            'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                        userAgentPackageName: 'com.signalsafe.app',
+                      ),
+                      if (session.overlayOn && _blackspots)
+                        PolygonLayer(
+                          polygons: [
+                            for (final spot in session.catalog.blackspots)
+                              Polygon(
+                                points: spot.points,
+                                color: pal.good.withValues(alpha: 0.16),
+                                borderColor: pal.good.withValues(alpha: 0.55),
+                                borderStrokeWidth: 1.4,
+                              ),
+                          ],
+                        ),
+                      if (session.overlayOn)
+                        PolylineLayer(polylines: _ribbons(session, pal)),
+                      MarkerLayer(markers: _markers(context, session, pal)),
+                      const RichAttributionWidget(
+                        attributions: [TextSourceAttribution('OpenStreetMap')],
+                      ),
+                    ],
                   ),
-                ],
-              ),
-              SafeArea(
-                child: Align(
-                  alignment: Alignment.topLeft,
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 680),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          _searchBar(context, session),
-                          const SizedBox(height: 10),
-                          _chips(context),
-                        ],
+                  // Floating search + chips; chips fade as the sheet takes over.
+                  SafeArea(
+                    child: Align(
+                      alignment: Alignment.topCenter,
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 680),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              ValueListenableBuilder<double>(
+                                valueListenable: _extent,
+                                builder: (context, e, child) {
+                                  final t = ((e - 0.8) / 0.1).clamp(0.0, 1.0);
+                                  return IgnorePointer(
+                                    ignoring: t > 0.5,
+                                    child: Opacity(
+                                      opacity: 1 - t,
+                                      child: child,
+                                    ),
+                                  );
+                                },
+                                child: _searchBar(context, session),
+                              ),
+                              const SizedBox(height: 10),
+                              ValueListenableBuilder<double>(
+                                valueListenable: _extent,
+                                builder: (context, e, child) {
+                                  final t = ((e - _halfSize) / 0.2).clamp(
+                                    0.0,
+                                    1.0,
+                                  );
+                                  return IgnorePointer(
+                                    ignoring: t > 0.5,
+                                    child: Opacity(
+                                      opacity: 1 - t,
+                                      child: Transform.translate(
+                                        offset: Offset(0, -12 * t),
+                                        child: child,
+                                      ),
+                                    ),
+                                  );
+                                },
+                                child: _chips(context),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ),
-              Positioned(
-                right: 12,
-                top: 168,
-                child: Column(
-                  children: [
-                    RoundIconButton(
-                      icon: PhosphorIconsRegular.stack,
-                      tooltip: 'Map layers',
-                      onTap: () => _layers(context, session),
+                  // Map controls, top-right under the chips.
+                  SafeArea(
+                    child: Align(
+                      alignment: Alignment.topRight,
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(0, 172, 12, 0),
+                        child: ValueListenableBuilder<double>(
+                          valueListenable: _extent,
+                          builder: (context, e, child) {
+                            final t = ((e - (_halfSize + 0.04)) / 0.12).clamp(
+                              0.0,
+                              1.0,
+                            );
+                            return IgnorePointer(
+                              ignoring: t > 0.5,
+                              child: Opacity(opacity: 1 - t, child: child),
+                            );
+                          },
+                          child: Frosted(
+                            borderRadius: BorderRadius.circular(16),
+                            lift: 0.7,
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                _MapControl(
+                                  icon: PhosphorIconsRegular.stack,
+                                  tooltip: 'Map layers',
+                                  onTap: () => _layers(context, session),
+                                ),
+                                _MapControl(
+                                  icon: session.overlayOn
+                                      ? PhosphorIconsFill.wifiHigh
+                                      : PhosphorIconsRegular.wifiHigh,
+                                  tooltip: session.overlayOn
+                                      ? 'Hide signal overlay'
+                                      : 'Show signal overlay',
+                                  selected: session.overlayOn,
+                                  onTap: () => ref
+                                      .read(sessionProvider.notifier)
+                                      .update(
+                                        (s) =>
+                                            s.copyWith(overlayOn: !s.overlayOn),
+                                      ),
+                                ),
+                                _MapControl(
+                                  icon: PhosphorIconsRegular.broadcast,
+                                  tooltip: 'Network operator',
+                                  onTap: () => _operators(context, session),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
                     ),
-                    const SizedBox(height: 8),
-                    RoundIconButton(
-                      icon: PhosphorIconsRegular.wifiHigh,
-                      tooltip: session.overlayOn
-                          ? 'Hide signal overlay'
-                          : 'Show signal overlay',
-                      selected: session.overlayOn,
-                      onTap: () => ref
-                          .read(sessionProvider.notifier)
-                          .update((s) => s.copyWith(overlayOn: !s.overlayOn)),
+                  ),
+                  // My-location button rides on top of the sheet, like a
+                  // floating action that follows your thumb.
+                  ValueListenableBuilder<double>(
+                    valueListenable: _extent,
+                    builder: (context, e, child) {
+                      final fade = ((e - (_halfSize + 0.03)) / 0.08).clamp(
+                        0.0,
+                        1.0,
+                      );
+                      return Positioned(
+                        right: 16,
+                        bottom: e * height + 14,
+                        child: IgnorePointer(
+                          ignoring: fade > 0.5,
+                          child: Opacity(
+                            opacity: 1 - fade,
+                            child: Transform.scale(
+                              scale: 1 - 0.2 * fade,
+                              child: child,
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                    child: Tooltip(
+                      message: 'My location',
+                      child: PressScale(
+                        onTap: () => _map.move(session.here, 13),
+                        child: Frosted(
+                          borderRadius: BorderRadius.circular(18),
+                          opacity: 0.95,
+                          child: SizedBox(
+                            width: 56,
+                            height: 56,
+                            child: Icon(
+                              PhosphorIconsFill.crosshair,
+                              color: pal.beacon,
+                              size: 24,
+                            ),
+                          ),
+                        ),
+                      ),
                     ),
-                    const SizedBox(height: 8),
-                    FloatingActionButton(
-                      heroTag: 'map-my-location',
-                      tooltip: 'My location',
-                      backgroundColor: pal.surface,
-                      foregroundColor: pal.beacon,
-                      elevation: 2,
-                      onPressed: () => _map.move(session.here, 13),
-                      child: const Icon(PhosphorIconsRegular.crosshair),
-                    ),
-                    const SizedBox(height: 8),
-                    RoundIconButton(
-                      icon: PhosphorIconsRegular.broadcast,
-                      tooltip: 'Network operator',
-                      onTap: () => _operators(context, session),
-                    ),
-                  ],
-                ),
-              ),
-              Align(
-                alignment: Alignment.bottomCenter,
-                child: _journeySheet(context, session),
-              ),
-            ],
+                  ),
+                  _journeySheet(context, session, height),
+                ],
+              );
+            },
           ),
         );
       },
@@ -384,14 +491,11 @@ class _MapScreenState extends ConsumerState<MapScreen> {
 
   Widget _searchBar(BuildContext context, Session session) {
     final pal = context.palette;
-    return Material(
-      color: pal.surface,
-      elevation: 2,
-      shadowColor: Colors.black.withValues(alpha: 0.12),
-      borderRadius: BorderRadius.circular(16),
-      clipBehavior: Clip.antiAlias,
+    return Frosted(
+      borderRadius: BorderRadius.circular(28),
+      lift: 1.1,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(12, 8, 6, 8),
+        padding: const EdgeInsets.fromLTRB(16, 6, 6, 6),
         child: Row(
           children: [
             Expanded(
@@ -485,7 +589,6 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   }
 
   Widget _chips(BuildContext context) {
-    final pal = context.palette;
     const items = [
       ('hospital', 'Hospitals', Color(0xFFE7483B)),
       ('police', 'Police', Color(0xFF3E7BCC)),
@@ -497,25 +600,22 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       ('blackspot', 'Weak signal', Color(0xFFC55D00)),
     ];
     return SizedBox(
-      height: 44,
+      height: 52,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
+        clipBehavior: Clip.none,
+        padding: const EdgeInsets.only(bottom: 8),
         itemCount: items.length,
         separatorBuilder: (_, _) => const SizedBox(width: 8),
         itemBuilder: (context, i) {
           final item = items[i];
           final selected = _category == item.$1;
-          return FilterChip(
-            avatar: Icon(categoryIcon(item.$1), size: 18, color: item.$3),
-            label: Text(item.$2),
+          return _CategoryPill(
+            icon: categoryIcon(item.$1),
+            label: item.$2,
+            color: item.$3,
             selected: selected,
-            backgroundColor: pal.surface,
-            selectedColor: pal.beacon.withValues(alpha: 0.18),
-            checkmarkColor: pal.beacon,
-            side: BorderSide(
-              color: selected ? pal.beacon : pal.border.withValues(alpha: 0.5),
-            ),
-            onSelected: (_) => setState(() {
+            onTap: () => setState(() {
               _category = selected ? null : item.$1;
               _essentials = true;
             }),
@@ -525,216 +625,502 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     );
   }
 
-  Widget _journeySheet(BuildContext context, Session session) {
+  // ---------------------------------------------------------------------
+  // Journey sheet: a draggable, snapping sheet (peek / half / full).
+  // ---------------------------------------------------------------------
+
+  static const double _peekPx = 196;
+  static const double _halfSize = 0.52;
+  static const double _fullSize = 1.0;
+
+  double _peekSize(double height) =>
+      (_peekPx / height).clamp(0.12, _halfSize - 0.05).toDouble();
+
+  void _snapTo(double size) {
+    if (!_sheet.isAttached) return;
+    _sheet.animateTo(size, duration: Motion.emphasized, curve: Motion.enter);
+  }
+
+  void _toggleSheet(double height) {
+    final peek = _peekSize(height);
+    final current = _sheet.isAttached ? _sheet.size : peek;
+    _snapTo(current < (peek + _halfSize) / 2 ? _halfSize : peek);
+  }
+
+  Widget _journeySheet(BuildContext context, Session session, double height) {
+    final peek = _peekSize(height);
+    return NotificationListener<DraggableScrollableNotification>(
+      onNotification: (n) {
+        _extent.value = n.extent;
+        return false;
+      },
+      child: ScrollConfiguration(
+        behavior: ScrollConfiguration.of(context).copyWith(
+          dragDevices: {
+            PointerDeviceKind.touch,
+            PointerDeviceKind.mouse,
+            PointerDeviceKind.trackpad,
+            PointerDeviceKind.stylus,
+          },
+        ),
+        child: DraggableScrollableSheet(
+          controller: _sheet,
+          initialChildSize: peek,
+          minChildSize: peek,
+          maxChildSize: _fullSize,
+          snap: true,
+          snapSizes: [peek, _halfSize],
+          snapAnimationDuration: Motion.standard,
+          builder: (context, scroll) {
+            return Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 720),
+                child: Frosted(
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(28),
+                  ),
+                  lift: 1.4,
+                  opacity: Theme.of(context).brightness == Brightness.dark
+                      ? 0.88
+                      : 0.92,
+                  child: CustomScrollView(
+                    controller: scroll,
+                    slivers: [
+                      SliverToBoxAdapter(
+                        child: Column(
+                          children: [
+                            // Clear the status bar once the sheet is fully open.
+                            ValueListenableBuilder<double>(
+                              valueListenable: _extent,
+                              builder: (context, e, _) => SizedBox(
+                                height:
+                                    MediaQuery.paddingOf(context).top *
+                                    ((e - 0.9) / 0.1).clamp(0.0, 1.0),
+                              ),
+                            ),
+                            _sheetHeader(context, session, height),
+                          ],
+                        ),
+                      ),
+                      SliverToBoxAdapter(
+                        child: _sheetActions(context, session),
+                      ),
+                      SliverToBoxAdapter(child: _sheetDivider(context)),
+                      ..._sheetDetails(context, session),
+                      const SliverToBoxAdapter(child: SizedBox(height: 32)),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _sheetDivider(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 8),
+    child: Divider(
+      height: 1,
+      thickness: 1,
+      color: context.palette.border.withValues(alpha: 0.5),
+    ),
+  );
+
+  Widget _sheetHeader(BuildContext context, Session session, double height) {
     final pal = context.palette;
     final route = session.route;
     final stats = route.stats[session.operatorFilter] ?? route.stats['all']!;
-    final lowSignalSegments = route.segments
-        .where(
-          (segment) =>
-              segment.levelFor(session.operatorFilter) == 'none' ||
-              segment.levelFor(session.operatorFilter) == 'weak',
-        )
+    final low = route.segments
+        .where((s) => _isLowSignal(s.levelFor(session.operatorFilter)))
         .toList();
-    final lowSignalMinutes = lowSignalSegments.fold<int>(
-      0,
-      (total, segment) => total + segment.min,
-    );
-    final lowSignalStart = lowSignalSegments.isEmpty
-        ? null
-        : lowSignalSegments.first.label.split(' – ').first;
-    final lowSignalEnd = lowSignalSegments.isEmpty
-        ? null
-        : lowSignalSegments.last.label.split(' – ').last;
-    final heroColor = lowSignalSegments.isEmpty ? pal.beacon : pal.moderate;
-    return SafeArea(
-      bottom: false,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
-        child: Align(
-          alignment: Alignment.bottomCenter,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 720),
-            child: Material(
-              color: pal.surface,
-              elevation: 10,
-              shadowColor: Colors.black.withValues(alpha: 0.16),
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(28),
-                bottom: Radius.circular(24),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(18, 12, 18, 12),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
+    final lowMin = low.fold<int>(0, (t, s) => t + s.min);
+    final heroColor = low.isEmpty ? pal.beacon : pal.text;
+    return Semantics(
+      button: true,
+      label: 'Journey details. Tap to expand or collapse.',
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => _toggleSheet(height),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 4),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SheetGrabber(),
+              const SizedBox(height: 6),
+              AnimatedSwitcher(
+                duration: Motion.standard,
+                switchInCurve: Motion.enter,
+                switchOutCurve: Motion.exit,
+                transitionBuilder: (child, a) => FadeTransition(
+                  opacity: a,
+                  child: SlideTransition(
+                    position: Tween(
+                      begin: const Offset(0, 0.15),
+                      end: Offset.zero,
+                    ).animate(a),
+                    child: child,
+                  ),
+                ),
+                child: Row(
+                  key: ValueKey('${route.id}-${session.operatorFilter}'),
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    Center(
-                      child: Container(
-                        width: 36,
-                        height: 4,
-                        decoration: BoxDecoration(
-                          color: pal.border,
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.baseline,
-                      textBaseline: TextBaseline.alphabetic,
-                      children: [
-                        Text(
-                          '${route.durationMin ~/ 60} h ${route.durationMin % 60} min',
-                          style: TextStyle(
-                            color: heroColor,
-                            fontSize: 30,
-                            fontWeight: FontWeight.w700,
-                            height: 1.1,
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Text(
-                          '(${route.distanceKm.toStringAsFixed(0)} km)',
-                          style: TextStyle(color: pal.muted, fontSize: 16),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '${route.name} · Estimated · '
-                      '${operatorLabel(session.operatorFilter)}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(color: pal.muted, fontSize: 14),
-                    ),
-                    const SizedBox(height: 12),
-                    Semantics(
-                      label: 'Estimated signal coverage by signal level',
-                      child: Row(
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          for (final level in const [
-                            'good',
-                            'moderate',
-                            'weak',
-                            'none',
-                          ])
-                            Expanded(
-                              flex: (stats[level] ?? 0).clamp(1, 100).toInt(),
-                              child: Container(
-                                height: 8,
-                                margin: const EdgeInsets.only(right: 2),
-                                decoration: BoxDecoration(
-                                  color: pal.level(level),
-                                  borderRadius: BorderRadius.circular(5),
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.baseline,
+                            textBaseline: TextBaseline.alphabetic,
+                            children: [
+                              Text(
+                                formatDuration(route.durationMin),
+                                style: TextStyle(
+                                  color: heroColor,
+                                  fontSize: 26,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: -0.4,
+                                  height: 1.1,
                                 ),
                               ),
-                            ),
+                              const SizedBox(width: 8),
+                              Text(
+                                '${route.distanceKm.toStringAsFixed(0)} km',
+                                style: TextStyle(
+                                  color: pal.muted,
+                                  fontSize: 15,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'via ${route.via} · ${operatorLabel(session.operatorFilter)}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(color: pal.muted, fontSize: 13),
+                          ),
                         ],
                       ),
                     ),
-                    const SizedBox(height: 6),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            lowSignalStart == null
-                                ? 'No weak areas'
-                                : 'From $lowSignalStart',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(color: pal.muted, fontSize: 12),
-                          ),
-                        ),
-                        Text(
-                          '$lowSignalMinutes min low/no signal',
-                          maxLines: 1,
-                          style: TextStyle(
-                            color: pal.moderate,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        Expanded(
-                          child: Text(
-                            lowSignalEnd == null ? '' : 'To $lowSignalEnd',
-                            textAlign: TextAlign.end,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(color: pal.muted, fontSize: 12),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: FilledButton.icon(
-                            onPressed: () {
-                              ref
-                                  .read(sessionProvider.notifier)
-                                  .update(
-                                    (s) => s.copyWith(
-                                      selectedRouteId: route.id,
-                                      navProgress: 0.08,
-                                    ),
-                                  );
-                              context.push('/navigate');
-                            },
-                            icon: const Icon(
-                              PhosphorIconsRegular.navigationArrow,
-                            ),
-                            label: const Text('Start navigation'),
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        OutlinedButton.icon(
-                          onPressed: () => ScaffoldMessenger.of(context)
-                              .showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                    'Offline map downloads are not available in this demo.',
-                                  ),
-                                ),
-                              ),
-                          icon: const Icon(PhosphorIconsRegular.downloadSimple),
-                          label: const Text('Offline'),
-                        ),
-                        const SizedBox(width: 4),
-                        IconButton(
-                          tooltip: 'Pre-trip report',
-                          onPressed: () => context.push('/report'),
-                          icon: const Icon(PhosphorIconsRegular.clipboardText),
-                        ),
-                      ],
-                    ),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: TextButton.icon(
-                        onPressed: () => context.push('/compare'),
-                        icon: const Icon(
-                          PhosphorIconsRegular.arrowsLeftRight,
-                          size: 18,
-                        ),
-                        label: const Text('Compare routes'),
-                      ),
-                    ),
+                    _ScorePill(score: route.connectivityScore),
                   ],
                 ),
               ),
-            ),
+              const SizedBox(height: 12),
+              CoverageStrip(stats: stats, height: 6),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Icon(
+                    low.isEmpty
+                        ? PhosphorIconsRegular.wifiHigh
+                        : PhosphorIconsRegular.wifiSlash,
+                    size: 15,
+                    color: low.isEmpty ? pal.good : pal.weak,
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      low.isEmpty
+                          ? 'Connected the whole way'
+                          : '$lowMin min with weak or no signal · from ${low.first.label.split(' – ').first}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: low.isEmpty ? pal.good : pal.weak,
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
       ),
     );
   }
 
+  Widget _sheetActions(BuildContext context, Session session) {
+    final route = session.route;
+    return SizedBox(
+      height: 60,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.fromLTRB(16, 10, 16, 2),
+        children: [
+          FilledButton.icon(
+            onPressed: () {
+              ref
+                  .read(sessionProvider.notifier)
+                  .update(
+                    (s) => s.copyWith(
+                      selectedRouteId: route.id,
+                      navProgress: 0.08,
+                    ),
+                  );
+              context.push('/navigate');
+            },
+            icon: const Icon(PhosphorIconsFill.navigationArrow, size: 18),
+            label: const Text('Start'),
+          ),
+          const SizedBox(width: 8),
+          _ActionPill(
+            icon: PhosphorIconsRegular.downloadSimple,
+            label: 'Offline',
+            onTap: () => ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  'Offline map downloads are not available in this demo.',
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          _ActionPill(
+            icon: PhosphorIconsRegular.clipboardText,
+            label: 'Pre-trip report',
+            onTap: () => context.push('/report'),
+          ),
+          const SizedBox(width: 8),
+          _ActionPill(
+            icon: PhosphorIconsRegular.arrowsLeftRight,
+            label: 'Compare routes',
+            onTap: () => context.push('/compare'),
+          ),
+          const SizedBox(width: 8),
+          _ActionPill(
+            icon: PhosphorIconsRegular.broadcast,
+            label: operatorLabel(session.operatorFilter),
+            onTap: () => _operators(context, session),
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<Widget> _sheetDetails(BuildContext context, Session session) {
+    final pal = context.palette;
+    final route = session.route;
+    final others = session
+        .rankedRoutes()
+        .where((r) => r.id != route.id)
+        .toList();
+    final essentials = session.catalog.places
+        .where(
+          (p) => const {
+            'hospital',
+            'police',
+            'fuel',
+            'recovery',
+          }.contains(p.category),
+        )
+        .toList();
+    final textTheme = Theme.of(context).textTheme;
+    Widget heading(String text, {String? sub}) => Padding(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            text,
+            style: textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w600,
+              color: pal.text,
+            ),
+          ),
+          if (sub != null) ...[
+            const SizedBox(height: 2),
+            Text(sub, style: TextStyle(color: pal.muted, fontSize: 12.5)),
+          ],
+        ],
+      ),
+    );
+
+    return [
+      SliverToBoxAdapter(
+        child: heading(
+          'Signal along the way',
+          sub: 'Estimated for ${operatorLabel(session.operatorFilter)}',
+        ),
+      ),
+      SliverList.builder(
+        itemCount: route.segments.length,
+        itemBuilder: (context, i) => _SegmentRow(
+          segment: route.segments[i],
+          level: route.segments[i].levelFor(session.operatorFilter),
+          first: i == 0,
+          last: i == route.segments.length - 1,
+        ),
+      ),
+      if (others.isNotEmpty) ...[
+        SliverToBoxAdapter(
+          child: heading('Other routes', sub: 'Tap a route to switch'),
+        ),
+        SliverList.builder(
+          itemCount: others.length,
+          itemBuilder: (context, i) {
+            final r = others[i];
+            final stats = r.stats[session.operatorFilter] ?? r.stats['all']!;
+            final delta = r.durationMin - route.durationMin;
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: PressScale(
+                onTap: () {
+                  ref
+                      .read(sessionProvider.notifier)
+                      .update((s) => s.copyWith(selectedRouteId: r.id));
+                  _map.fitCamera(
+                    CameraFit.bounds(
+                      bounds: LatLngBounds.fromPoints(r.points),
+                      padding: const EdgeInsets.fromLTRB(36, 170, 36, 260),
+                    ),
+                  );
+                  final h = MediaQuery.sizeOf(context).height;
+                  _snapTo(_peekSize(h));
+                },
+                child: Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: pal.elevated.withValues(alpha: 0.7),
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              r.name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: pal.text,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 15,
+                              ),
+                            ),
+                          ),
+                          Text(
+                            formatDuration(r.durationMin),
+                            style: TextStyle(
+                              color: pal.text,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 15,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 2),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              'via ${r.via} · ${r.distanceKm.toStringAsFixed(0)} km',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: pal.muted,
+                                fontSize: 12.5,
+                              ),
+                            ),
+                          ),
+                          Text(
+                            delta == 0
+                                ? 'Same time'
+                                : delta > 0
+                                ? '+${formatDuration(delta)}'
+                                : '−${formatDuration(-delta)}',
+                            style: TextStyle(
+                              color: delta > 0 ? pal.muted : pal.good,
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      CoverageStrip(stats: stats, height: 5),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+      ],
+      SliverToBoxAdapter(
+        child: heading(
+          'Help along the route',
+          sub: 'Hospitals, police, fuel and signal recovery points',
+        ),
+      ),
+      SliverList.builder(
+        itemCount: essentials.length,
+        itemBuilder: (context, i) {
+          final p = essentials[i];
+          final color = p.category == 'hospital'
+              ? pal.sos
+              : _categoryColor(p.category, pal);
+          return ListTile(
+            contentPadding: const EdgeInsets.symmetric(horizontal: 20),
+            leading: Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.14),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(categoryIcon(p.category), size: 20, color: color),
+            ),
+            title: Text(
+              p.name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(color: pal.text, fontWeight: FontWeight.w500),
+            ),
+            subtitle: Text(
+              p.subtitle,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(color: pal.muted, fontSize: 12.5),
+            ),
+            trailing: Icon(
+              PhosphorIconsRegular.caretRight,
+              size: 18,
+              color: pal.muted,
+            ),
+            onTap: () {
+              _map.move(p.point, 13);
+              _placeSheet(context, p);
+            },
+          );
+        },
+      ),
+      SliverToBoxAdapter(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+          child: Text(
+            'Signal levels are estimates from tower metadata and community reports. '
+            'Map downloads, live-location sharing and automatic SOS delivery are not available in this demo.',
+            style: TextStyle(color: pal.muted, fontSize: 12, height: 1.4),
+          ),
+        ),
+      ),
+    ];
+  }
+
   void _fit(Session session) {
     _map.fitCamera(
       CameraFit.bounds(
         bounds: LatLngBounds.fromPoints(session.route.points),
-        padding: const EdgeInsets.fromLTRB(36, 150, 36, 230),
+        padding: const EdgeInsets.fromLTRB(36, 170, 36, 240),
       ),
     );
   }
@@ -996,4 +1382,269 @@ class _DottedConnectorPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_DottedConnectorPainter oldDelegate) => false;
+}
+
+class _ScorePill extends StatelessWidget {
+  const _ScorePill({required this.score});
+
+  final int score;
+
+  @override
+  Widget build(BuildContext context) {
+    final pal = context.palette;
+    final level = score >= 75
+        ? 'good'
+        : score >= 55
+        ? 'moderate'
+        : 'weak';
+    return Semantics(
+      label: 'Connectivity score $score out of 100',
+      child: ExcludeSemantics(
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: pal.levelContainer(level),
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Column(
+            children: [
+              Text(
+                '$score',
+                style: TextStyle(
+                  color: pal.onLevelContainer(level),
+                  fontWeight: FontWeight.w800,
+                  fontSize: 17,
+                  height: 1.1,
+                ),
+              ),
+              Text(
+                'signal',
+                style: TextStyle(
+                  color: pal.onLevelContainer(level),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.3,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ActionPill extends StatelessWidget {
+  const _ActionPill({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final pal = context.palette;
+    return OutlinedButton.icon(
+      onPressed: onTap,
+      style: OutlinedButton.styleFrom(
+        foregroundColor: pal.beacon,
+        backgroundColor: pal.surface.withValues(alpha: 0.6),
+        side: BorderSide(color: pal.border),
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+      ),
+      icon: Icon(icon, size: 18),
+      label: Text(label),
+    );
+  }
+}
+
+class _SegmentRow extends StatelessWidget {
+  const _SegmentRow({
+    required this.segment,
+    required this.level,
+    required this.first,
+    required this.last,
+  });
+
+  final RouteSegment segment;
+  final String level;
+  final bool first;
+  final bool last;
+
+  @override
+  Widget build(BuildContext context) {
+    final pal = context.palette;
+    final color = pal.level(level);
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            SizedBox(
+              width: 20,
+              child: Column(
+                children: [
+                  Expanded(
+                    child: Container(
+                      width: 3,
+                      color: first ? Colors.transparent : pal.border,
+                    ),
+                  ),
+                  Container(
+                    width: 12,
+                    height: 12,
+                    decoration: BoxDecoration(
+                      color: color,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: pal.surface, width: 2),
+                    ),
+                  ),
+                  Expanded(
+                    child: Container(
+                      width: 3,
+                      color: last ? Colors.transparent : pal.border,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      segment.label,
+                      style: TextStyle(
+                        color: pal.text,
+                        fontWeight: FontWeight.w500,
+                        fontSize: 14,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${segment.km.toStringAsFixed(0)} km · ${formatDuration(segment.min)}',
+                      style: TextStyle(color: pal.muted, fontSize: 12.5),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            Center(child: SignalChip(level: level, compact: true)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CategoryPill extends StatelessWidget {
+  const _CategoryPill({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final Color color;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final pal = context.palette;
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: label,
+      child: PressScale(
+        onTap: onTap,
+        child: Frosted(
+          borderRadius: BorderRadius.circular(20),
+          tint: selected ? pal.primaryContainer : null,
+          opacity: selected ? 0.96 : null,
+          lift: 0.5,
+          child: AnimatedPadding(
+            duration: Motion.quick,
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                AnimatedSwitcher(
+                  duration: Motion.quick,
+                  child: Icon(
+                    selected ? PhosphorIconsBold.check : icon,
+                    key: ValueKey(selected),
+                    size: 17,
+                    color: selected ? pal.onPrimaryContainer : color,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  label,
+                  style: TextStyle(
+                    color: selected ? pal.onPrimaryContainer : pal.text,
+                    fontWeight: FontWeight.w500,
+                    fontSize: 13.5,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MapControl extends StatelessWidget {
+  const _MapControl({
+    required this.icon,
+    required this.tooltip,
+    required this.onTap,
+    this.selected = false,
+  });
+
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onTap;
+  final bool selected;
+
+  @override
+  Widget build(BuildContext context) {
+    final pal = context.palette;
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          child: SizedBox(
+            width: 48,
+            height: 48,
+            child: AnimatedSwitcher(
+              duration: Motion.quick,
+              child: Icon(
+                icon,
+                key: ValueKey(icon),
+                size: 22,
+                color: selected ? pal.beacon : pal.text,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
