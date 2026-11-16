@@ -226,7 +226,12 @@ class AppTheme {
         elevation: 0,
         centerTitle: false,
         surfaceTintColor: Colors.transparent,
-        titleTextStyle: textTheme.headlineSmall?.copyWith(color: pal.text),
+        titleTextStyle: textTheme.headlineSmall?.copyWith(
+          color: pal.text,
+          fontWeight: FontWeight.w600,
+          letterSpacing: -0.2,
+        ),
+        scrolledUnderElevation: 0,
       ),
       navigationBarTheme: NavigationBarThemeData(
         height: 80,
@@ -278,6 +283,10 @@ class AppTheme {
       bottomSheetTheme: BottomSheetThemeData(
         backgroundColor: pal.surface,
         modalBackgroundColor: pal.surface,
+        surfaceTintColor: Colors.transparent,
+        dragHandleColor: pal.outline.withValues(alpha: 0.45),
+        dragHandleSize: const Size(36, 4),
+        showDragHandle: true,
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
         ),
@@ -286,15 +295,15 @@ class AppTheme {
         filled: true,
         fillColor: pal.elevated,
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(16),
           borderSide: BorderSide(color: pal.border),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: pal.border),
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: pal.border.withValues(alpha: 0.5)),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(16),
           borderSide: BorderSide(color: pal.beacon, width: 1.4),
         ),
         hintStyle: TextStyle(color: pal.muted),
@@ -303,16 +312,75 @@ class AppTheme {
         color: pal.surface,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
+        margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: BorderSide(color: pal.border),
+          borderRadius: BorderRadius.circular(24),
+          side: BorderSide(color: pal.border.withValues(alpha: 0.45)),
         ),
+      ),
+      listTileTheme: ListTileThemeData(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        iconColor: pal.muted,
+        titleTextStyle: textTheme.bodyLarge?.copyWith(
+          color: pal.text,
+          fontSize: 15,
+          fontWeight: FontWeight.w500,
+        ),
+        subtitleTextStyle: textTheme.bodyMedium?.copyWith(
+          color: pal.muted,
+          fontSize: 13,
+        ),
+      ),
+      snackBarTheme: SnackBarThemeData(
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: brightness == Brightness.dark
+            ? const Color(0xFFE0E5E3)
+            : const Color(0xFF1F2624),
+        contentTextStyle: TextStyle(
+          color: brightness == Brightness.dark
+              ? const Color(0xFF191C1B)
+              : Colors.white,
+          fontSize: 14,
+        ),
+        actionTextColor: brightness == Brightness.dark
+            ? pal.primaryContainer
+            : const Color(0xFF80D8CC),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        insetPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      ),
+      dialogTheme: DialogThemeData(
+        backgroundColor: pal.surface,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+      ),
+      segmentedButtonTheme: SegmentedButtonThemeData(
+        style: SegmentedButton.styleFrom(
+          backgroundColor: pal.surface,
+          selectedBackgroundColor: pal.primaryContainer,
+          selectedForegroundColor: pal.onPrimaryContainer,
+          side: BorderSide(color: pal.border),
+          shape: const StadiumBorder(),
+        ),
+      ),
+      switchTheme: SwitchThemeData(
+        trackOutlineColor: WidgetStateProperty.resolveWith(
+          (states) => states.contains(WidgetState.selected)
+              ? Colors.transparent
+              : pal.outline.withValues(alpha: 0.6),
+        ),
+      ),
+      floatingActionButtonTheme: FloatingActionButtonThemeData(
+        backgroundColor: pal.primaryContainer,
+        foregroundColor: pal.onPrimaryContainer,
+        elevation: 3,
+        highlightElevation: 4,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       ),
       chipTheme: base.chipTheme.copyWith(
         backgroundColor: pal.surface,
-        selectedColor: pal.secondaryContainer,
-        side: BorderSide(color: pal.border),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        selectedColor: pal.primaryContainer,
+        side: BorderSide(color: pal.border.withValues(alpha: 0.7)),
+        shape: const StadiumBorder(),
         labelStyle: TextStyle(color: pal.text),
       ),
     );

@@ -14,6 +14,7 @@ import '../../core/geo.dart';
 import '../../core/models.dart';
 import '../../core/session.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/frosted.dart';
 import '../../widgets/hud.dart';
 import '../../widgets/session_gate.dart';
 
@@ -339,11 +340,9 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen> {
   }
 
   Widget _signalStatus(BuildContext context, Session session, String level) {
-    final pal = context.palette;
-    return Material(
-      color: pal.surface,
-      elevation: 3,
-      shape: const StadiumBorder(),
+    return Frosted(
+      borderRadius: BorderRadius.circular(99),
+      lift: 0.6,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         child: Row(
@@ -429,14 +428,9 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen> {
   }) {
     final pal = context.palette;
     final noSignal = gap.levelFor(session.operatorFilter) == 'none';
-    return Material(
-      color: pal.surface,
-      elevation: 3,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: pal.border),
-      ),
-      clipBehavior: Clip.antiAlias,
+    return Frosted(
+      borderRadius: BorderRadius.circular(22),
+      lift: 0.7,
       child: Padding(
         padding: EdgeInsets.all(compact ? 10 : 14),
         child: Column(
@@ -658,13 +652,10 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen> {
     required bool veryCompact,
   }) {
     final pal = context.palette;
-    return Material(
-      color: pal.surface,
-      elevation: 10,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      clipBehavior: Clip.antiAlias,
+    return Frosted(
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+      lift: 1.4,
+      opacity: 0.92,
       child: Padding(
         padding: EdgeInsets.fromLTRB(
           16,
@@ -676,10 +667,10 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              width: 32,
+              width: 36,
               height: 4,
               decoration: BoxDecoration(
-                color: pal.border,
+                color: pal.outline.withValues(alpha: 0.45),
                 borderRadius: BorderRadius.circular(4),
               ),
             ),

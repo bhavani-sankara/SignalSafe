@@ -24,8 +24,8 @@ class Glass extends StatelessWidget {
   const Glass({
     super.key,
     required this.child,
-    this.padding = const EdgeInsets.all(14),
-    this.radius = 16,
+    this.padding = const EdgeInsets.all(16),
+    this.radius = 22,
     this.color,
   });
 
@@ -41,7 +41,7 @@ class Glass extends StatelessWidget {
       color: color ?? pal.surface,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(radius),
-        side: BorderSide(color: pal.border),
+        side: BorderSide(color: pal.border.withValues(alpha: 0.45)),
       ),
       clipBehavior: Clip.antiAlias,
       child: Padding(padding: padding, child: child),

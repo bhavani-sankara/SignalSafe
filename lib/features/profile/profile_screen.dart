@@ -228,20 +228,16 @@ class ProfileScreen extends ConsumerWidget {
           minimumSize: const WidgetStatePropertyAll(Size(0, 48)),
           foregroundColor: WidgetStateProperty.resolveWith((states) {
             return states.contains(WidgetState.selected)
-                ? pal.onSecondaryContainer
+                ? pal.onPrimaryContainer
                 : pal.muted;
           }),
           backgroundColor: WidgetStateProperty.resolveWith((states) {
             return states.contains(WidgetState.selected)
-                ? pal.secondaryContainer
+                ? pal.primaryContainer
                 : pal.surface;
           }),
           side: WidgetStatePropertyAll(BorderSide(color: pal.border)),
-          shape: const WidgetStatePropertyAll(
-            RoundedRectangleBorder(
-              borderRadius: BorderRadius.all(Radius.circular(8)),
-            ),
-          ),
+          shape: const WidgetStatePropertyAll(StadiumBorder()),
         ),
       ),
     );

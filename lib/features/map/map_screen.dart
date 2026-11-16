@@ -30,6 +30,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   bool _fitted = false;
   final _sheet = DraggableScrollableController();
   final _extent = ValueNotifier<double>(0);
+  double _bottomInset = 0;
 
   @override
   void dispose() {
@@ -51,6 +52,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
           body: LayoutBuilder(
             builder: (context, box) {
               final height = box.maxHeight;
+              _bottomInset = MediaQuery.paddingOf(context).bottom;
               if (_extent.value == 0) _extent.value = _peekSize(height);
               return Stack(
                 children: [
@@ -633,8 +635,9 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   static const double _halfSize = 0.52;
   static const double _fullSize = 1.0;
 
-  double _peekSize(double height) =>
-      (_peekPx / height).clamp(0.12, _halfSize - 0.05).toDouble();
+  double _peekSize(double height) => ((_peekPx + _bottomInset) / height)
+      .clamp(0.12, _halfSize - 0.05)
+      .toDouble();
 
   void _snapTo(double size) {
     if (!_sheet.isAttached) return;
@@ -707,7 +710,9 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                       ),
                       SliverToBoxAdapter(child: _sheetDivider(context)),
                       ..._sheetDetails(context, session),
-                      const SliverToBoxAdapter(child: SizedBox(height: 32)),
+                      SliverToBoxAdapter(
+                        child: SizedBox(height: 32 + _bottomInset),
+                      ),
                     ],
                   ),
                 ),

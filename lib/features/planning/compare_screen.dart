@@ -6,7 +6,9 @@ import 'package:phosphor_icons/phosphor_icons.dart';
 import '../../core/models.dart';
 import '../../core/session.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/frosted.dart';
 import '../../widgets/hud.dart';
+import '../../widgets/route_mini_map.dart';
 import '../../widgets/session_gate.dart';
 
 class CompareScreen extends ConsumerWidget {
@@ -79,74 +81,103 @@ class CompareScreen extends ConsumerWidget {
   ) {
     final selected = session.selectedRouteId == route.id;
     final pal = context.palette;
-    return Glass(
-      color: selected ? pal.elevated : pal.surface,
+    return AnimatedContainer(
+      duration: Motion.standard,
+      curve: Motion.settle,
+      decoration: BoxDecoration(
+        color: pal.surface,
+        borderRadius: BorderRadius.circular(26),
+        border: Border.all(
+          color: selected ? pal.beacon : pal.border.withValues(alpha: 0.45),
+          width: selected ? 2 : 1,
+        ),
+        boxShadow: selected ? floatShadow(context, lift: 0.6) : null,
+      ),
+      clipBehavior: Clip.antiAlias,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  route.name,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 16,
+          RouteMiniMap(
+            route: route,
+            context: session.catalog.routes,
+            operator: session.operatorFilter,
+            height: 120,
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        route.name,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ),
+                    if (top)
+                      _statusLabel(
+                        context,
+                        'Top ranked',
+                        PhosphorIconsFill.sealCheck,
+                      ),
+                  ],
+                ),
+                if (selected) ...[
+                  const SizedBox(height: 6),
+                  _statusLabel(
+                    context,
+                    'Selected route',
+                    PhosphorIconsFill.checkCircle,
                   ),
+                ],
+                const SizedBox(height: 4),
+                Text(route.via, style: TextStyle(color: pal.muted)),
+                const SizedBox(height: 8),
+                Text(
+                  '${route.distanceKm.toStringAsFixed(0)} km · ${formatDuration(route.durationMin)} · score ${route.connectivityScore}',
+                  style: dataStyle(context),
                 ),
-              ),
-              if (top)
-                _statusLabel(
+                const SizedBox(height: 8),
+                Text(route.outlook),
+                const SizedBox(height: 8),
+                _statRow(
                   context,
-                  'Top ranked',
-                  PhosphorIconsFill.sealCheck,
+                  route.stats[session.operatorFilter] ?? route.stats['all']!,
                 ),
-            ],
-          ),
-          if (selected) ...[
-            const SizedBox(height: 6),
-            _statusLabel(
-              context,
-              'Selected route',
-              PhosphorIconsFill.checkCircle,
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    FilledButton(
+                      onPressed: selected
+                          ? null
+                          : () => ref
+                                .read(sessionProvider.notifier)
+                                .update(
+                                  (s) => s.copyWith(selectedRouteId: route.id),
+                                ),
+                      child: Text(selected ? 'Selected' : 'Use this route'),
+                    ),
+                    const SizedBox(width: 8),
+                    TextButton(
+                      onPressed: () async {
+                        ref
+                            .read(sessionProvider.notifier)
+                            .update(
+                              (s) => s.copyWith(selectedRouteId: route.id),
+                            );
+                        await _save(context, ref, route);
+                      },
+                      child: const Text('Save'),
+                    ),
+                  ],
+                ),
+              ],
             ),
-          ],
-          const SizedBox(height: 4),
-          Text(route.via, style: TextStyle(color: pal.muted)),
-          const SizedBox(height: 8),
-          Text(
-            '${route.distanceKm.toStringAsFixed(0)} km · ${formatDuration(route.durationMin)} · score ${route.connectivityScore}',
-            style: dataStyle(context),
-          ),
-          const SizedBox(height: 8),
-          Text(route.outlook),
-          const SizedBox(height: 8),
-          _statRow(
-            context,
-            route.stats[session.operatorFilter] ?? route.stats['all']!,
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              FilledButton(
-                onPressed: selected
-                    ? null
-                    : () => ref
-                          .read(sessionProvider.notifier)
-                          .update((s) => s.copyWith(selectedRouteId: route.id)),
-                child: Text(selected ? 'Selected' : 'Use this route'),
-              ),
-              const SizedBox(width: 8),
-              TextButton(
-                onPressed: () async {
-                  ref
-                      .read(sessionProvider.notifier)
-                      .update((s) => s.copyWith(selectedRouteId: route.id));
-                  await _save(context, ref, route);
-                },
-                child: const Text('Save'),
-              ),
-            ],
           ),
         ],
       ),
@@ -179,8 +210,10 @@ class CompareScreen extends ConsumerWidget {
                     child: LinearProgressIndicator(
                       minHeight: 6,
                       value: ((stats[level] ?? 0) / 100).clamp(0, 1),
-                      color: context.palette.level(level),
-                      backgroundColor: context.palette.border,
+                      color: context.palette.levelFill(level),
+                      backgroundColor: context.palette.border.withValues(
+                        alpha: 0.5,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -228,7 +261,9 @@ class CompareScreen extends ConsumerWidget {
                   ])
                     Expanded(
                       flex: stats[level] ?? 0,
-                      child: ColoredBox(color: context.palette.level(level)),
+                      child: ColoredBox(
+                        color: context.palette.levelFill(level),
+                      ),
                     ),
                 ],
               ),
