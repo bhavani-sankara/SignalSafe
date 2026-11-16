@@ -365,6 +365,7 @@ class RoundIconButton extends StatelessWidget {
   }
 }
 
+/// iOS grouped-list header: small uppercase grey label.
 class SectionLabel extends StatelessWidget {
   const SectionLabel(this.text, {super.key});
   final String text;
@@ -372,19 +373,21 @@ class SectionLabel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8, top: 4),
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 7),
       child: Text(
-        text,
-        style: Theme.of(context).textTheme.labelLarge?.copyWith(
-          fontSize: 14,
-          fontWeight: FontWeight.w500,
-          color: context.palette.beacon,
+        text.toUpperCase(),
+        style: TextStyle(
+          fontSize: 13,
+          letterSpacing: 0.1,
+          fontWeight: FontWeight.w400,
+          color: context.palette.muted,
         ),
       ),
     );
   }
 }
 
+/// Content section title, iOS style: bold title-case heading.
 class SectionHeading extends StatelessWidget {
   const SectionHeading(this.text, {super.key, this.subtitle});
 
@@ -394,20 +397,21 @@ class SectionHeading extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12, top: 8),
+      padding: const EdgeInsets.only(bottom: 10, top: 14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             text,
-            style: Theme.of(context).textTheme.labelLarge?.copyWith(
-              fontSize: 14,
-              color: context.palette.beacon,
-              fontWeight: FontWeight.w500,
+            style: TextStyle(
+              fontSize: 20,
+              letterSpacing: -0.4,
+              color: context.palette.text,
+              fontWeight: FontWeight.w700,
             ),
           ),
           if (subtitle != null) ...[
-            const SizedBox(height: 4),
+            const SizedBox(height: 2),
             Text(
               subtitle!,
               style: TextStyle(color: context.palette.muted, fontSize: 13),

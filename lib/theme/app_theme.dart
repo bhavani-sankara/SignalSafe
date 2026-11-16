@@ -1,4 +1,11 @@
+import 'package:flutter/cupertino.dart'
+    show
+        CupertinoPageTransitionsBuilder,
+        CupertinoTextThemeData,
+        CupertinoThemeData;
 import 'package:flutter/material.dart';
+
+const kFont = 'Inter';
 
 class SignalPalette {
   const SignalPalette({
@@ -58,11 +65,11 @@ class SignalPalette {
   final Color destination;
 
   static const dark = SignalPalette(
-    ink: Color(0xFF111917),
-    surface: Color(0xFF151D1A),
-    elevated: Color(0xFF1F2926),
-    text: Color(0xFFE0E5E3),
-    muted: Color(0xFFC0C9C6),
+    ink: Color(0xFF000000),
+    surface: Color(0xFF1C1C1E),
+    elevated: Color(0xFF2C2C2E),
+    text: Color(0xFFFFFFFF),
+    muted: Color(0xFF98989F),
     beacon: Color(0xFF80D8CC),
     route: Color(0xFF80CBC4),
     good: Color(0xFFC9F0D5),
@@ -70,8 +77,8 @@ class SignalPalette {
     weak: Color(0xFFFFD8A8),
     none: Color(0xFFBAC4C1),
     sos: Color(0xFFFFB4AB),
-    border: Color(0xFF404947),
-    glass: Color(0xFF1A2421),
+    border: Color(0xFF38383A),
+    glass: Color(0xFF1C1C1E),
     primaryContainer: Color(0xFF005047),
     onPrimaryContainer: Color(0xFF94F2E2),
     secondaryContainer: Color(0xFF244C46),
@@ -82,16 +89,16 @@ class SignalPalette {
     onWarningContainer: Color(0xFFFFE7B3),
     successContainer: Color(0xFF0A3D1F),
     onSuccessContainer: Color(0xFFC9F0D5),
-    outline: Color(0xFF89938F),
+    outline: Color(0xFF8E8E93),
     destination: Color(0xFFFF8A80),
   );
 
   static const light = SignalPalette(
-    ink: Color(0xFFF8FAF9),
+    ink: Color(0xFFF2F2F7),
     surface: Color(0xFFFFFFFF),
-    elevated: Color(0xFFEBF0EE),
-    text: Color(0xFF191C1B),
-    muted: Color(0xFF404947),
+    elevated: Color(0xFFE9E9EE),
+    text: Color(0xFF000000),
+    muted: Color(0xFF6C6C70),
     beacon: Color(0xFF00796B),
     route: Color(0xFF00897B),
     good: Color(0xFF0A3D1F),
@@ -99,7 +106,7 @@ class SignalPalette {
     weak: Color(0xFF8A4F00),
     none: Color(0xFF59615E),
     sos: Color(0xFFB3261E),
-    border: Color(0xFFC0C9C6),
+    border: Color(0xFFD1D1D6),
     glass: Color(0xFFFFFFFF),
     primaryContainer: Color(0xFFB2EBE2),
     onPrimaryContainer: Color(0xFF00201C),
@@ -111,7 +118,7 @@ class SignalPalette {
     onWarningContainer: Color(0xFF5B3C00),
     successContainer: Color(0xFFC9F0D5),
     onSuccessContainer: Color(0xFF0A3D1F),
-    outline: Color(0xFF6F7977),
+    outline: Color(0xFF8E8E93),
     destination: Color(0xFFEA4335),
   );
 
@@ -181,83 +188,121 @@ class AppTheme {
           outline: pal.outline,
           outlineVariant: pal.border,
         );
-    final base = ThemeData(colorScheme: scheme, useMaterial3: true);
-    final textTheme = base.textTheme.copyWith(
-      headlineSmall: base.textTheme.headlineSmall?.copyWith(
-        fontSize: 28,
-        height: 36 / 28,
-        fontWeight: FontWeight.w400,
-      ),
-      titleMedium: base.textTheme.titleMedium?.copyWith(
-        fontSize: 16,
-        height: 24 / 16,
-        fontWeight: FontWeight.w500,
-      ),
-      bodyLarge: base.textTheme.bodyLarge?.copyWith(
-        fontSize: 14,
-        height: 20 / 14,
-      ),
-      bodyMedium: base.textTheme.bodyMedium?.copyWith(
-        fontSize: 14,
-        height: 20 / 14,
-      ),
-      labelLarge: base.textTheme.labelLarge?.copyWith(
-        fontWeight: FontWeight.w500,
-      ),
+    final base = ThemeData(
+      colorScheme: scheme,
+      useMaterial3: true,
+      fontFamily: kFont,
+      // iOS behaviour everywhere: bouncing scroll, edge-swipe back,
+      // Cupertino switches/indicators for adaptive widgets.
+      platform: TargetPlatform.iOS,
+    );
+    TextStyle? t(
+      TextStyle? b,
+      double size,
+      FontWeight w,
+      double ls, [
+      double? h,
+    ]) => b?.copyWith(
+      fontFamily: kFont,
+      fontSize: size,
+      fontWeight: w,
+      letterSpacing: ls,
+      height: h,
+    );
+    // Apple's type ramp (Large Title 34, Title 28/22/20, Headline 17,
+    // Body 17, Callout 16, Subhead 15, Footnote 13, Caption 12/11).
+    final tt = base.textTheme;
+    final textTheme = tt.copyWith(
+      displaySmall: t(tt.displaySmall, 34, FontWeight.w700, -0.8),
+      headlineLarge: t(tt.headlineLarge, 34, FontWeight.w700, -0.8),
+      headlineMedium: t(tt.headlineMedium, 34, FontWeight.w700, -0.8),
+      headlineSmall: t(tt.headlineSmall, 28, FontWeight.w700, -0.6, 1.15),
+      titleLarge: t(tt.titleLarge, 22, FontWeight.w700, -0.4),
+      titleMedium: t(tt.titleMedium, 17, FontWeight.w600, -0.3),
+      titleSmall: t(tt.titleSmall, 15, FontWeight.w600, -0.2),
+      bodyLarge: t(tt.bodyLarge, 17, FontWeight.w400, -0.3, 1.3),
+      bodyMedium: t(tt.bodyMedium, 15, FontWeight.w400, -0.2, 1.33),
+      bodySmall: t(tt.bodySmall, 13, FontWeight.w400, -0.05),
+      labelLarge: t(tt.labelLarge, 15, FontWeight.w600, -0.2),
+      labelMedium: t(tt.labelMedium, 13, FontWeight.w500, -0.05),
+      labelSmall: t(tt.labelSmall, 11, FontWeight.w500, 0.05),
+    );
+    final cupertinoText = TextStyle(
+      fontFamily: kFont,
+      color: pal.text,
+      fontSize: 17,
+      letterSpacing: -0.3,
     );
     return base.copyWith(
       scaffoldBackgroundColor: pal.ink,
+      cupertinoOverrideTheme: CupertinoThemeData(
+        primaryColor: pal.beacon,
+        brightness: brightness,
+        textTheme: CupertinoTextThemeData(
+          primaryColor: pal.beacon,
+          textStyle: cupertinoText,
+          navTitleTextStyle: cupertinoText.copyWith(
+            fontWeight: FontWeight.w600,
+          ),
+          navLargeTitleTextStyle: cupertinoText.copyWith(
+            fontSize: 34,
+            fontWeight: FontWeight.w700,
+            letterSpacing: -0.8,
+          ),
+          actionTextStyle: cupertinoText.copyWith(color: pal.beacon),
+        ),
+      ),
       pageTransitionsTheme: const PageTransitionsTheme(
         builders: {
-          TargetPlatform.android: FadeForwardsPageTransitionsBuilder(),
-          TargetPlatform.iOS: FadeForwardsPageTransitionsBuilder(),
-          TargetPlatform.macOS: FadeForwardsPageTransitionsBuilder(),
-          TargetPlatform.windows: FadeForwardsPageTransitionsBuilder(),
-          TargetPlatform.linux: FadeForwardsPageTransitionsBuilder(),
-          TargetPlatform.fuchsia: FadeForwardsPageTransitionsBuilder(),
+          TargetPlatform.android: CupertinoPageTransitionsBuilder(),
+          TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+          TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
+          TargetPlatform.windows: CupertinoPageTransitionsBuilder(),
+          TargetPlatform.linux: CupertinoPageTransitionsBuilder(),
+          TargetPlatform.fuchsia: CupertinoPageTransitionsBuilder(),
         },
       ),
       colorScheme: scheme,
       textTheme: textTheme,
       dividerColor: pal.border,
+      dividerTheme: DividerThemeData(
+        color: pal.border,
+        thickness: 0.5,
+        space: 0.5,
+      ),
       appBarTheme: AppBarTheme(
         backgroundColor: pal.ink,
         foregroundColor: pal.text,
         elevation: 0,
-        centerTitle: false,
+        centerTitle: true,
         surfaceTintColor: Colors.transparent,
-        titleTextStyle: textTheme.headlineSmall?.copyWith(
-          color: pal.text,
-          fontWeight: FontWeight.w600,
-          letterSpacing: -0.2,
-        ),
+        titleTextStyle: textTheme.titleMedium?.copyWith(color: pal.text),
         scrolledUnderElevation: 0,
       ),
       navigationBarTheme: NavigationBarThemeData(
-        height: 80,
-        backgroundColor: pal.elevated,
-        indicatorColor: pal.secondaryContainer,
-        indicatorShape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
+        height: 58,
+        backgroundColor: pal.surface,
+        indicatorColor: Colors.transparent,
+        overlayColor: const WidgetStatePropertyAll(Colors.transparent),
         labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+        labelPadding: const EdgeInsets.only(top: 2),
         labelTextStyle: WidgetStateProperty.resolveWith(
-          (states) => textTheme.labelSmall?.copyWith(
-            fontSize: 12,
-            fontWeight: states.contains(WidgetState.selected)
-                ? FontWeight.w700
-                : FontWeight.w500,
+          (states) => TextStyle(
+            fontFamily: kFont,
+            fontSize: 10.5,
+            letterSpacing: 0.05,
+            fontWeight: FontWeight.w500,
             color: states.contains(WidgetState.selected)
                 ? pal.beacon
-                : pal.muted,
+                : pal.outline,
           ),
         ),
         iconTheme: WidgetStateProperty.resolveWith(
           (states) => IconThemeData(
-            size: 24,
+            size: 26,
             color: states.contains(WidgetState.selected)
                 ? pal.beacon
-                : pal.muted,
+                : pal.outline,
           ),
         ),
       ),
@@ -314,18 +359,14 @@ class AppTheme {
         elevation: 0,
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(24),
-          side: BorderSide(color: pal.border.withValues(alpha: 0.45)),
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide.none,
         ),
       ),
       listTileTheme: ListTileThemeData(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         iconColor: pal.muted,
-        titleTextStyle: textTheme.bodyLarge?.copyWith(
-          color: pal.text,
-          fontSize: 15,
-          fontWeight: FontWeight.w500,
-        ),
+        titleTextStyle: textTheme.bodyLarge?.copyWith(color: pal.text),
         subtitleTextStyle: textTheme.bodyMedium?.copyWith(
           color: pal.muted,
           fontSize: 13,

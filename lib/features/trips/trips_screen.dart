@@ -1,3 +1,5 @@
+import 'package:flutter/cupertino.dart'
+    show CupertinoButton, CupertinoSliverNavigationBar;
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -37,20 +39,30 @@ class TripsScreen extends ConsumerWidget {
         return Scaffold(
           body: CustomScrollView(
             slivers: [
-              SliverAppBar.large(
-                pinned: true,
-                backgroundColor: pal.ink,
-                surfaceTintColor: Colors.transparent,
-                scrolledUnderElevation: 0,
-                title: const Text('Trips'),
-                actions: [
-                  IconButton.filledTonal(
-                    tooltip: 'Add a place',
-                    onPressed: () => context.push('/search?mode=destination'),
-                    icon: const Icon(PhosphorIconsRegular.plus),
+              CupertinoSliverNavigationBar(
+                largeTitle: const Text('Trips'),
+                transitionBetweenRoutes: false,
+                automaticallyImplyLeading: false,
+                backgroundColor: pal.ink.withValues(alpha: 0.86),
+                border: Border(
+                  bottom: BorderSide(
+                    color: pal.border.withValues(alpha: 0.6),
+                    width: 0,
                   ),
-                  const SizedBox(width: 12),
-                ],
+                ),
+                trailing: Tooltip(
+                  message: 'Add a place',
+                  child: CupertinoButton(
+                    padding: EdgeInsets.zero,
+                    minimumSize: const Size(44, 44),
+                    onPressed: () => context.push('/search?mode=destination'),
+                    child: Icon(
+                      PhosphorIconsBold.plus,
+                      color: pal.beacon,
+                      size: 22,
+                    ),
+                  ),
+                ),
               ),
               SliverToBoxAdapter(
                 child: MaxWidthContent(

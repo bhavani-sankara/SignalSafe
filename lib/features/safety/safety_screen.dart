@@ -11,6 +11,7 @@ import '../../core/models.dart';
 import '../../core/session.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/hud.dart';
+import '../../widgets/ios.dart';
 import '../../widgets/session_gate.dart';
 
 class SafetyScreen extends ConsumerWidget {
@@ -23,8 +24,9 @@ class SafetyScreen extends ConsumerWidget {
         final pal = context.palette;
         final stamp = DateFormat('d MMM, HH:mm').format(DateTime.now());
         return Scaffold(
-          appBar: AppBar(
-            title: const Text('Safety'),
+          appBar: iosLargeAppBar(
+            context,
+            'Safety',
             actions: [
               Padding(
                 padding: const EdgeInsets.only(right: 12),
@@ -262,7 +264,7 @@ class SafetyScreen extends ConsumerWidget {
                     subtitle: const Text('Simulated connectivity only'),
                     childrenPadding: const EdgeInsets.symmetric(horizontal: 12),
                     children: [
-                      SwitchListTile(
+                      SwitchListTile.adaptive(
                         contentPadding: EdgeInsets.zero,
                         title: const Text('Simulate signal loss'),
                         value: session.simulateLoss,
@@ -275,7 +277,7 @@ class SafetyScreen extends ConsumerWidget {
                               ),
                             ),
                       ),
-                      SwitchListTile(
+                      SwitchListTile.adaptive(
                         contentPadding: EdgeInsets.zero,
                         title: const Text('Simulate a blackspot'),
                         value: session.simulateBlackspot,

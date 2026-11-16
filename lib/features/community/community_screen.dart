@@ -9,6 +9,7 @@ import '../../core/models.dart';
 import '../../core/session.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/hud.dart';
+import '../../widgets/ios.dart';
 import '../../widgets/session_gate.dart';
 
 class CommunityScreen extends ConsumerStatefulWidget {
@@ -36,8 +37,9 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
                 .toList()
               ..sort((a, b) => a.minutesAgo.compareTo(b.minutesAgo));
         return Scaffold(
-          appBar: AppBar(
-            title: const Text('Community'),
+          appBar: iosLargeAppBar(
+            context,
+            'Community',
             actions: [
               IconButton(
                 tooltip: 'Search places',

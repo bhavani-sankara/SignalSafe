@@ -6,6 +6,7 @@ import '../../core/models.dart';
 import '../../core/session.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/hud.dart';
+import '../../widgets/ios.dart';
 import '../../widgets/session_gate.dart';
 
 class ProfileScreen extends ConsumerWidget {
@@ -15,75 +16,106 @@ class ProfileScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return SessionGate(
       builder: (context, session) {
+        final pal = context.palette;
+        void notify(NotifyPrefs n) => ref
+            .read(sessionProvider.notifier)
+            .update((s) => s.copyWith(notify: n));
         return Scaffold(
-          appBar: AppBar(title: const Text('Profile')),
+          appBar: iosLargeAppBar(context, 'Profile'),
           body: MaxWidthContent(
+            maxWidth: 680,
             child: ListView(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 112),
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 112),
               children: [
-                Row(
+                // Account card, like the Apple ID row in Settings.
+                IosSection(
                   children: [
-                    CircleAvatar(
-                      radius: 32,
-                      backgroundColor: context.palette.beacon,
-                      child: Text(
-                        session.userName.isEmpty ? 'S' : session.userName[0],
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 28,
+                    InkWell(
+                      onTap: () => _rename(context, ref, session.userName),
+                      child: Padding(
+                        padding: const EdgeInsets.all(14),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 62,
+                              height: 62,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                gradient: LinearGradient(
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                  colors: [pal.route, const Color(0xFF07463F)],
+                                ),
+                              ),
+                              alignment: Alignment.center,
+                              child: Text(
+                                session.userName.isEmpty
+                                    ? 'S'
+                                    : session.userName[0],
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 26,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    session.userName,
+                                    style: TextStyle(
+                                      color: pal.text,
+                                      fontSize: 22,
+                                      fontWeight: FontWeight.w600,
+                                      letterSpacing: -0.4,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    '${session.catalog.userHandle} · Edit name',
+                                    style: TextStyle(
+                                      color: pal.muted,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Semantics(
+                              label: 'Edit name',
+                              button: true,
+                              child: Icon(
+                                PhosphorIconsBold.caretRight,
+                                size: 14,
+                                color: pal.outline.withValues(alpha: 0.7),
+                              ),
+                            ),
+                          ],
                         ),
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            session.userName,
-                            style: Theme.of(context).textTheme.titleLarge
-                                ?.copyWith(fontWeight: FontWeight.w500),
-                          ),
-                          Text(
-                            session.catalog.userHandle,
-                            style: TextStyle(color: context.palette.muted),
-                          ),
-                        ],
-                      ),
-                    ),
-                    IconButton.filledTonal(
-                      tooltip: 'Edit name',
-                      onPressed: () => _rename(context, ref, session.userName),
-                      icon: const Icon(PhosphorIconsRegular.pencilSimple),
-                      style: IconButton.styleFrom(
-                        backgroundColor: context.palette.beacon.withValues(
-                          alpha: 0.14,
-                        ),
-                        foregroundColor: context.palette.beacon,
-                        minimumSize: const Size(52, 52),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 16),
-                const SectionHeading('Appearance'),
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  secondary: const Icon(PhosphorIconsRegular.moon),
-                  title: const Text('Dark theme'),
-                  subtitle: const Text(
-                    'Use a darker palette for night travel.',
-                  ),
-                  value: session.darkMode,
-                  onChanged: (value) => ref
-                      .read(sessionProvider.notifier)
-                      .update((state) => state.copyWith(darkMode: value)),
-                ),
-                const SizedBox(height: 24),
-                const SectionHeading(
-                  'Travel preferences',
-                  subtitle: 'Set how SignalSafe plans your journey.',
+                IosSection(
+                  header: 'Appearance',
+                  dividerIndent: 60,
+                  children: [
+                    IosSwitchRow(
+                      leading: const IosIconTile(
+                        icon: PhosphorIconsFill.moon,
+                        color: Color(0xFF5856D6),
+                      ),
+                      title: 'Dark theme',
+                      subtitle: 'Use a darker palette for night travel.',
+                      value: session.darkMode,
+                      onChanged: (value) => ref
+                          .read(sessionProvider.notifier)
+                          .update((state) => state.copyWith(darkMode: value)),
+                    ),
+                  ],
                 ),
                 const SectionLabel('Preferred network'),
                 _segments(
@@ -122,82 +154,110 @@ class ProfileScreen extends ConsumerWidget {
                       .read(sessionProvider.notifier)
                       .update((s) => s.copyWith(routePref: value)),
                 ),
-                const SizedBox(height: 16),
-                const SectionLabel('Safety'),
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Avoid long blackspots'),
-                  subtitle: const Text('Prefer routes with fewer signal gaps.'),
-                  value: session.avoidLongBlackspots,
-                  onChanged: (value) => ref
-                      .read(sessionProvider.notifier)
-                      .update((s) => s.copyWith(avoidLongBlackspots: value)),
-                ),
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Stay near services'),
-                  subtitle: const Text(
-                    'Prefer routes with fuel and hospitals.',
-                  ),
-                  value: session.stayNearServices,
-                  onChanged: (value) => ref
-                      .read(sessionProvider.notifier)
-                      .update((s) => s.copyWith(stayNearServices: value)),
-                ),
                 const SizedBox(height: 28),
-                const SectionHeading('Saved places'),
-                for (final place in session.catalog.savedPlaces)
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: CircleAvatar(
-                      backgroundColor: context.palette.elevated,
-                      child: Icon(
-                        PhosphorIconsRegular.mapPinLine,
-                        color: context.palette.text,
+                IosSection(
+                  header: 'Route safety',
+                  footer: 'SignalSafe uses these when ranking routes.',
+                  dividerIndent: 60,
+                  children: [
+                    IosSwitchRow(
+                      leading: const IosIconTile(
+                        icon: PhosphorIconsFill.wifiSlash,
+                        color: Color(0xFFFF9500),
                       ),
+                      title: 'Avoid long blackspots',
+                      subtitle: 'Prefer routes with fewer signal gaps.',
+                      value: session.avoidLongBlackspots,
+                      onChanged: (value) => ref
+                          .read(sessionProvider.notifier)
+                          .update(
+                            (s) => s.copyWith(avoidLongBlackspots: value),
+                          ),
                     ),
-                    title: Text(
-                      place['label']!.split(' · ').first,
-                      style: const TextStyle(fontWeight: FontWeight.w500),
+                    IosSwitchRow(
+                      leading: const IosIconTile(
+                        icon: PhosphorIconsFill.firstAid,
+                        color: Color(0xFFFF3B30),
+                      ),
+                      title: 'Stay near services',
+                      subtitle: 'Prefer routes with fuel and hospitals.',
+                      value: session.stayNearServices,
+                      onChanged: (value) => ref
+                          .read(sessionProvider.notifier)
+                          .update((s) => s.copyWith(stayNearServices: value)),
                     ),
-                    subtitle: place['label']!.contains(' · ')
-                        ? Text(place['label']!.split(' · ').last)
-                        : null,
-                  ),
-                const SizedBox(height: 16),
-                const SectionHeading(
-                  'Notifications',
-                  subtitle: 'Choose which route events to hear about.',
+                  ],
                 ),
-                _switch(
-                  context,
-                  ref,
-                  'Upcoming blackspots',
-                  session.notify.blackspots,
-                  (v) => session.notify.copyWith(blackspots: v),
+                IosSection(
+                  header: 'Saved places',
+                  dividerIndent: 60,
+                  children: [
+                    for (final place in session.catalog.savedPlaces)
+                      IosRow(
+                        leading: IosIconTile(
+                          icon: place['label']!.toLowerCase().startsWith('home')
+                              ? PhosphorIconsFill.houseLine
+                              : PhosphorIconsFill.mapPin,
+                          color:
+                              place['label']!.toLowerCase().startsWith('home')
+                              ? const Color(0xFF007AFF)
+                              : const Color(0xFFFF2D55),
+                        ),
+                        title: place['label']!.split(' · ').first,
+                        value: place['label']!.contains(' · ')
+                            ? place['label']!.split(' · ').last
+                            : null,
+                        chevron: false,
+                      ),
+                  ],
                 ),
-                _switch(
-                  context,
-                  ref,
-                  'Signal lost or restored',
-                  session.notify.lossRestore,
-                  (v) => session.notify.copyWith(lossRestore: v),
+                IosSection(
+                  header: 'Notifications',
+                  footer: 'Choose which route events to hear about.',
+                  dividerIndent: 60,
+                  children: [
+                    IosSwitchRow(
+                      leading: const IosIconTile(
+                        icon: PhosphorIconsFill.warning,
+                        color: Color(0xFFFF9500),
+                      ),
+                      title: 'Upcoming blackspots',
+                      value: session.notify.blackspots,
+                      onChanged: (v) =>
+                          notify(session.notify.copyWith(blackspots: v)),
+                    ),
+                    IosSwitchRow(
+                      leading: const IosIconTile(
+                        icon: PhosphorIconsFill.cellSignalHigh,
+                        color: Color(0xFF34C759),
+                      ),
+                      title: 'Signal lost or restored',
+                      value: session.notify.lossRestore,
+                      onChanged: (v) =>
+                          notify(session.notify.copyWith(lossRestore: v)),
+                    ),
+                    IosSwitchRow(
+                      leading: const IosIconTile(
+                        icon: PhosphorIconsFill.wifiHigh,
+                        color: Color(0xFF30B0C7),
+                      ),
+                      title: 'Approaching recovery points',
+                      value: session.notify.recovery,
+                      onChanged: (v) =>
+                          notify(session.notify.copyWith(recovery: v)),
+                    ),
+                    IosSwitchRow(
+                      leading: const IosIconTile(
+                        icon: PhosphorIconsFill.shieldChevron,
+                        color: Color(0xFFFF3B30),
+                      ),
+                      title: 'Safety alerts',
+                      value: session.notify.safety,
+                      onChanged: (v) =>
+                          notify(session.notify.copyWith(safety: v)),
+                    ),
+                  ],
                 ),
-                _switch(
-                  context,
-                  ref,
-                  'Approaching recovery points',
-                  session.notify.recovery,
-                  (v) => session.notify.copyWith(recovery: v),
-                ),
-                _switch(
-                  context,
-                  ref,
-                  'Safety alerts',
-                  session.notify.safety,
-                  (v) => session.notify.copyWith(safety: v),
-                ),
-                const SizedBox(height: 12),
               ],
             ),
           ),
@@ -217,7 +277,7 @@ class ProfileScreen extends ConsumerWidget {
     return SizedBox(
       width: double.infinity,
       child: SegmentedButton<String>(
-        showSelectedIcon: true,
+        showSelectedIcon: false,
         segments: [
           for (var i = 0; i < values.length; i++)
             ButtonSegment(value: values[i], label: Text(labels[i])),
@@ -225,38 +285,21 @@ class ProfileScreen extends ConsumerWidget {
         selected: {current},
         onSelectionChanged: (selection) => onChanged(selection.first),
         style: ButtonStyle(
-          minimumSize: const WidgetStatePropertyAll(Size(0, 48)),
+          minimumSize: const WidgetStatePropertyAll(Size(0, 36)),
           foregroundColor: WidgetStateProperty.resolveWith((states) {
-            return states.contains(WidgetState.selected)
-                ? pal.onPrimaryContainer
-                : pal.muted;
+            return states.contains(WidgetState.selected) ? pal.text : pal.muted;
           }),
           backgroundColor: WidgetStateProperty.resolveWith((states) {
             return states.contains(WidgetState.selected)
-                ? pal.primaryContainer
-                : pal.surface;
+                ? pal.surface
+                : pal.elevated;
           }),
-          side: WidgetStatePropertyAll(BorderSide(color: pal.border)),
+          side: WidgetStatePropertyAll(
+            BorderSide(color: pal.elevated, width: 2),
+          ),
           shape: const WidgetStatePropertyAll(StadiumBorder()),
         ),
       ),
-    );
-  }
-
-  Widget _switch(
-    BuildContext context,
-    WidgetRef ref,
-    String title,
-    bool value,
-    NotifyPrefs Function(bool) next,
-  ) {
-    return SwitchListTile(
-      contentPadding: EdgeInsets.zero,
-      title: Text(title),
-      value: value,
-      onChanged: (v) => ref
-          .read(sessionProvider.notifier)
-          .update((s) => s.copyWith(notify: next(v))),
     );
   }
 

@@ -1142,7 +1142,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
               bool value,
               ValueChanged<bool> onChanged,
             ) {
-              return SwitchListTile(
+              return SwitchListTile.adaptive(
                 title: Text(title),
                 value: value,
                 onChanged: (v) {

@@ -33,12 +33,10 @@ class AppShell extends StatelessWidget {
               ),
             ),
             child: NavigationBar(
-              height: 76,
               elevation: 0,
               backgroundColor: pal.surface.withValues(alpha: dark ? 0.8 : 0.84),
               surfaceTintColor: Colors.transparent,
-              indicatorColor: pal.primaryContainer,
-              animationDuration: const Duration(milliseconds: 420),
+
               selectedIndex: shell.currentIndex,
               onDestinationSelected: (index) => shell.goBranch(
                 index,
