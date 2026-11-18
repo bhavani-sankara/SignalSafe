@@ -38,21 +38,21 @@ The matching dark roles are defined alongside the light roles in `lib/theme/app_
 
 ## Components and Interaction
 
-- Use the Material 3 `NavigationBar` for the five persistent tabs: Map, Trips, Safety, Community, and Profile.
+- Use Material 3 navigation for the five persistent destinations: `NavigationBar` on compact widths and `NavigationRail` on expanded widths.
 - Keep minimum touch targets at 48dp. Label icon-only actions with tooltips/semantics.
 - Use outlined list rows and cards for supporting content, with inset dividers where appropriate; reserve elevation for floating controls.
 - Signal quality must include both a signal-bars icon and a text label. Risk severity must include an icon and label.
-- Keep the SOS action red and explicit about its demo behavior. A three-second hold opens confirmation/options; it does not send an SOS or share live location.
+- Keep the SOS action red and explicit about its demo behavior. Pair its foreground with the theme's `onError` role. A three-second hold opens confirmation/options; it does not send an SOS or share live location.
 - Describe saved trips as an offline plan, not an offline map download. OSM tiles still require a network connection.
 
 ## Screen Guidance
 
-- **Map:** Keep the full-bleed OSM map and existing interactions. Use light route chrome, a white route casing, a distinct amber low-signal segment/callout, and accessible map controls.
-- **Trips:** Lead with saved-place shortcuts and one route preview card. Keep recent searches easy to clear.
-- **Safety:** Make the demo status visible, protect the SOS action from accidental activation, and keep contacts and route alerts scannable.
+- **Map:** Keep the full-bleed OSM map and existing interactions. Use light route chrome, a white route casing, amber low-signal segments and blackspot areas, accessible 48dp map controls with descriptive semantics, and keep controls clear of route filters.
+- **Trips:** Lead with saved-place shortcuts and one route preview card. Show route-specific low/no-signal time on saved journeys and keep recent searches easy to clear.
+- **Safety:** Make the demo status visible, keep the surrounding SOS surface neutral so red stays reserved for the action, protect SOS from accidental activation, and keep contacts and route alerts scannable.
 - **Community:** Use network filter chips, flat report rows with inset dividers, agreement/status information, and one extended report action.
 - **Profile:** Keep appearance controls prominent, use segmented choices for exclusive preferences, and independent switches for safety preferences.
-- **Active navigation:** Keep turn guidance prominent in a teal banner, preserve an open OSM map as the main canvas, and dock route progress and essential drive/voice actions below it. Show estimated coverage and blackspot/recovery details without obscuring route visibility.
+- **Active navigation:** Keep turn guidance prominent in a compact teal banner, preserve an open OSM map as the main canvas, and dock route progress and essential drive/voice actions below it. Consolidate blackspot and recovery details at phone widths; reserve the full coverage breakdown for expanded layouts or the route-details sheet.
 
 ## Quality Bar
 

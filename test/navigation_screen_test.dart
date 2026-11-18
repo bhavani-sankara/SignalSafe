@@ -9,7 +9,7 @@ void main() {
   testWidgets('navigation shows guidance, connectivity, and dock actions', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(390, 844);
+    tester.view.physicalSize = const Size(390, 780);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
@@ -31,6 +31,8 @@ void main() {
 
     expect(find.text('Head south on the Outer Ring Road'), findsOneWidget);
     expect(find.text('Then'), findsOneWidget);
+    expect(find.text('Good · All networks · Estimated'), findsOneWidget);
+    expect(find.text('Toward Srisailam'), findsNothing);
     expect(find.text('Mannanur – Dornala forest'), findsOneWidget);
     expect(find.text('Drive'), findsOneWidget);
     expect(find.byTooltip('End navigation'), findsOneWidget);

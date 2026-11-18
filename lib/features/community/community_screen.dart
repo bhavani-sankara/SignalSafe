@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
@@ -23,18 +24,15 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final ref = this.ref;
     return SessionGate(
       builder: (context, session) {
-        final reports =
-            session.reports
-                .where(
-                  (report) =>
-                      _operatorFilter == 'all' ||
-                      report.operator == _operatorFilter,
-                )
-                .toList()
-              ..sort((a, b) => a.minutesAgo.compareTo(b.minutesAgo));
+        final pal = context.palette;
+        final reports = session.reports
+            .where((r) =>
+                _operatorFilter == 'all' || r.operator == _operatorFilter)
+            .toList()
+          ..sort((a, b) => a.minutesAgo.compareTo(b.minutesAgo));
+
         return Scaffold(
           appBar: AppBar(
             title: const Text('Community'),
@@ -44,18 +42,20 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
                 onPressed: () => context.push('/search'),
                 icon: const Icon(PhosphorIconsRegular.magnifyingGlass),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 4),
             ],
           ),
           body: MaxWidthContent(
             child: Stack(
               children: [
                 ListView(
-                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
                   children: [
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(
+                    // ── Operator filter chips ──────────────────────────
+                    SizedBox(
+                      height: 38,
+                      child: ListView(
+                        scrollDirection: Axis.horizontal,
                         children: [
                           for (final option in const [
                             ('all', 'All'),
@@ -65,82 +65,95 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
                             ('bsnl', 'BSNL'),
                           ])
                             Padding(
-                              padding: const EdgeInsets.only(right: 8),
-                              child: FilterChip(
-                                label: Text(option.$2),
-                                selected: _operatorFilter == option.$1,
-                                selectedColor: context.palette.beacon
-                                    .withValues(alpha: 0.18),
-                                checkmarkColor: context.palette.beacon,
-                                side: BorderSide(
-                                  color: _operatorFilter == option.$1
-                                      ? context.palette.beacon
-                                      : context.palette.border,
+                              padding: const EdgeInsets.only(right: 6),
+                              child: GestureDetector(
+                                onTap: () => setState(
+                                    () => _operatorFilter = option.$1),
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 180),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 14, vertical: 7),
+                                  decoration: BoxDecoration(
+                                    color: _operatorFilter == option.$1
+                                        ? pal.secondaryContainer
+                                        : pal.surface,
+                                    borderRadius: BorderRadius.circular(10),
+                                    border: Border.all(
+                                      color: _operatorFilter == option.$1
+                                          ? pal.beacon
+                                          : pal.border,
+                                      width: _operatorFilter == option.$1
+                                          ? 1.5
+                                          : 1,
+                                    ),
+                                  ),
+                                  child: Text(
+                                    option.$2,
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                      color: _operatorFilter == option.$1
+                                          ? pal.beacon
+                                          : pal.text,
+                                    ),
+                                  ),
                                 ),
-                                onSelected: (_) =>
-                                    setState(() => _operatorFilter = option.$1),
                               ),
                             ),
                         ],
                       ),
                     ),
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8, bottom: 12),
-                      child: Text(
-                        'Traveller reports, separate from estimated coverage',
-                        style: TextStyle(
-                          color: context.palette.muted,
-                          fontSize: 14,
-                        ),
-                      ),
+
+                    const SizedBox(height: 10),
+                    Text(
+                      'Traveller reports, separate from estimated coverage',
+                      style: TextStyle(color: pal.muted, fontSize: 13),
                     ),
-                    const Divider(indent: 56, height: 1),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 14),
+
+                    // ── Empty state ────────────────────────────────────
                     if (reports.isEmpty)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 36),
-                        child: Column(
-                          children: [
-                            Icon(
-                              PhosphorIconsRegular.broadcast,
-                              size: 32,
-                              color: context.palette.muted,
-                            ),
-                            const SizedBox(height: 12),
-                            const Text('No reports for this network yet.'),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Share a signal check to help other travellers.',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(color: context.palette.muted),
-                            ),
-                          ],
-                        ),
-                      )
-                    else
-                      for (var i = 0; i < reports.length; i++) ...[
-                        _card(context, ref, session, reports[i]),
-                        if (i < reports.length - 1)
-                          const Divider(indent: 56, height: 1),
-                      ],
+                      _emptyState(context, pal)
+                          .animate()
+                          .fadeIn(duration: 350.ms),
+
+                    // ── Report cards ───────────────────────────────────
+                    for (var i = 0; i < reports.length; i++) ...[
+                      _reportCard(context, session, reports[i])
+                          .animate(delay: (i * 50).ms)
+                          .fadeIn(duration: 280.ms)
+                          .slideY(
+                              begin: 0.04,
+                              end: 0,
+                              duration: 300.ms,
+                              curve: Curves.easeOut),
+                      if (i < reports.length - 1)
+                        Divider(height: 1, color: pal.border),
+                    ],
                   ],
                 ),
+
+                // ── FAB ────────────────────────────────────────────────
                 Positioned(
-                  right: 16,
-                  bottom: 20,
+                  right: 0,
+                  bottom: 16,
                   child: SafeArea(
                     top: false,
                     child: FloatingActionButton.extended(
-                      backgroundColor: context.palette.primaryContainer,
-                      foregroundColor: context.palette.onPrimaryContainer,
+                      backgroundColor: pal.beacon,
+                      foregroundColor: Colors.white,
+                      elevation: 4,
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
+                          borderRadius: BorderRadius.circular(18)),
+                      onPressed: () => _submit(context, session),
+                      icon: const Icon(PhosphorIconsRegular.plus, size: 18),
+                      label: const Text(
+                        'Report signal',
+                        style: TextStyle(fontWeight: FontWeight.w700),
                       ),
-                      onPressed: () => _submit(context, ref, session),
-                      icon: const Icon(PhosphorIconsRegular.plus),
-                      label: const Text('Report signal'),
                     ),
-                  ),
+                  ).animate().fadeIn(duration: 400.ms, delay: 200.ms).slideY(
+                        begin: 0.2, end: 0, duration: 400.ms, curve: Curves.easeOut),
                 ),
               ],
             ),
@@ -150,25 +163,60 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
     );
   }
 
-  Widget _card(
-    BuildContext context,
-    WidgetRef ref,
-    Session session,
-    SignalReport report,
-  ) {
+  Widget _emptyState(BuildContext context, SignalPalette pal) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 48),
+      child: Column(
+        children: [
+          Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              color: pal.secondaryContainer,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Icon(PhosphorIconsRegular.broadcast,
+                color: pal.beacon, size: 28),
+          ),
+          const SizedBox(height: 16),
+          Text('No reports for this network yet.',
+              style: Theme.of(context)
+                  .textTheme
+                  .titleSmall
+                  ?.copyWith(fontWeight: FontWeight.w700)),
+          const SizedBox(height: 6),
+          Text(
+            'Share a signal check to help other travellers.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: pal.muted),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _reportCard(
+      BuildContext context, Session session, SignalReport report) {
     final flagged = session.flaggedIds.contains(report.id);
     final pal = context.palette;
+
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 16),
+      padding: const EdgeInsets.symmetric(vertical: 14),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          CircleAvatar(
-            radius: 20,
-            backgroundColor: pal.levelContainer(report.level),
-            child: SignalBars(level: report.level),
+          // Signal level avatar
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: pal.levelContainer(report.level),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Center(child: SignalBars(level: report.level)),
           ),
-          const SizedBox(width: 14),
+          const SizedBox(width: 12),
+
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -178,66 +226,69 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
                     Expanded(
                       child: Text(
                         '${operatorLabel(report.operator)} · ${report.tech}',
-                        style: Theme.of(context).textTheme.titleMedium
-                            ?.copyWith(fontWeight: FontWeight.w600),
+                        style: Theme.of(context)
+                            .textTheme
+                            .titleSmall
+                            ?.copyWith(fontWeight: FontWeight.w700),
                       ),
                     ),
                     Text(
                       agoLabel(report.minutesAgo),
-                      style: TextStyle(color: pal.muted, fontSize: 13),
+                      style: TextStyle(color: pal.muted, fontSize: 12),
                     ),
                     PopupMenuButton<String>(
                       tooltip: 'Report options',
                       padding: EdgeInsets.zero,
-                      icon: Icon(
-                        PhosphorIconsRegular.dotsThreeVertical,
-                        color: pal.muted,
-                      ),
-                      onSelected: (_) => _toggleFlag(ref, report, flagged),
-                      itemBuilder: (context) => [
+                      iconSize: 18,
+                      icon: Icon(PhosphorIconsRegular.dotsThreeVertical,
+                          color: pal.muted, size: 18),
+                      onSelected: (_) =>
+                          _toggleFlag(report, flagged),
+                      itemBuilder: (ctx) => [
                         PopupMenuItem(
                           value: 'flag',
                           child: Text(
-                            flagged ? 'Remove flag' : 'Flag as outdated',
-                          ),
+                              flagged ? 'Remove flag' : 'Flag as outdated'),
                         ),
                       ],
                     ),
                   ],
                 ),
+
                 if (report.comment.isNotEmpty) ...[
                   const SizedBox(height: 4),
-                  Text(
-                    report.comment,
-                    style: Theme.of(context).textTheme.bodyLarge,
-                  ),
+                  Text(report.comment,
+                      style: TextStyle(
+                          color: pal.text, height: 1.4, fontSize: 14)),
                 ],
-                const SizedBox(height: 10),
-                Wrap(
-                  spacing: 10,
-                  runSpacing: 8,
-                  crossAxisAlignment: WrapCrossAlignment.center,
+
+                const SizedBox(height: 8),
+
+                // Mini signal strip (shows signal distribution context)
+                Row(
                   children: [
                     SignalChip(level: report.level, compact: true),
+                    const SizedBox(width: 10),
                     Text(
-                      '${(report.agreement * 100).round()}% of travellers agree',
-                      style: TextStyle(color: pal.muted),
+                      '${(report.agreement * 100).round()}% agree',
+                      style: TextStyle(color: pal.muted, fontSize: 12),
                     ),
                   ],
                 ),
+
                 if (flagged) ...[
                   const SizedBox(height: 8),
                   Row(
                     children: [
-                      Icon(
-                        PhosphorIconsRegular.flag,
-                        color: pal.moderate,
-                        size: 16,
-                      ),
-                      const SizedBox(width: 6),
+                      Icon(PhosphorIconsRegular.flag,
+                          color: pal.moderate, size: 14),
+                      const SizedBox(width: 5),
                       Text(
                         'Flagged as possibly outdated',
-                        style: TextStyle(color: pal.moderate),
+                        style: TextStyle(
+                            color: pal.moderate,
+                            fontSize: 12,
+                            fontStyle: FontStyle.italic),
                       ),
                     ],
                   ),
@@ -250,126 +301,139 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
     );
   }
 
-  void _toggleFlag(WidgetRef ref, SignalReport report, bool flagged) {
+  void _toggleFlag(SignalReport report, bool flagged) {
     ref.read(sessionProvider.notifier).update((s) {
       final next = {...s.flaggedIds};
-      if (flagged) {
-        next.remove(report.id);
-      } else {
-        next.add(report.id);
-      }
+      flagged ? next.remove(report.id) : next.add(report.id);
       return s.copyWith(flaggedIds: next);
     });
   }
 
-  Future<void> _submit(
-    BuildContext context,
-    WidgetRef ref,
-    Session session,
-  ) async {
+  Future<void> _submit(BuildContext context, Session session) async {
     var level = 'moderate';
     var operator = session.preferredOperator;
     var tech = '4G';
     final comment = TextEditingController();
+
     final ok = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
-      builder: (context) {
+      builder: (ctx) {
         return SafeArea(
           child: SingleChildScrollView(
             padding: EdgeInsets.fromLTRB(
-              16,
-              0,
-              16,
-              16 + MediaQuery.viewInsetsOf(context).bottom,
-            ),
+                16, 0, 16, 16 + MediaQuery.viewInsetsOf(ctx).bottom),
             child: StatefulBuilder(
-              builder: (context, setSheet) {
-                return Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Signal report',
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Location uses your current mock position in Gachibowli.',
-                      style: TextStyle(color: context.palette.muted),
-                    ),
-                    const SizedBox(height: 12),
-                    Wrap(
-                      spacing: 8,
-                      children: [
-                        for (final item in const [
-                          'good',
-                          'moderate',
-                          'weak',
-                          'none',
-                        ])
-                          ChoiceChip(
-                            label: Text(item == 'none' ? 'No signal' : item),
-                            selected: level == item,
-                            onSelected: (_) => setSheet(() => level = item),
+              builder: (ctx, setSheet) => Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Report signal',
+                      style: Theme.of(ctx).textTheme.titleLarge),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Location uses your current mock position in Gachibowli.',
+                    style: TextStyle(
+                        color: context.palette.muted, fontSize: 13),
+                  ),
+                  const SizedBox(height: 14),
+                  SectionLabel('Signal level'),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      for (final item in const [
+                        'good',
+                        'moderate',
+                        'weak',
+                        'none'
+                      ])
+                        GestureDetector(
+                          onTap: () => setSheet(() => level = item),
+                          child: AnimatedContainer(
+                            duration: 150.ms,
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 14, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: level == item
+                                  ? context.palette.levelContainer(item)
+                                  : context.palette.surface,
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                color: level == item
+                                    ? context.palette.level(item)
+                                    : context.palette.border,
+                                width: level == item ? 1.5 : 1,
+                              ),
+                            ),
+                            child: Text(
+                              item == 'none' ? 'No signal' : item,
+                              style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 13,
+                                color: level == item
+                                    ? context.palette
+                                        .onLevelContainer(item)
+                                    : context.palette.text,
+                              ),
+                            ),
                           ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    DropdownButtonFormField<String>(
-                      initialValue: operator,
-                      decoration: const InputDecoration(labelText: 'Operator'),
-                      items: const [
-                        DropdownMenuItem(value: 'jio', child: Text('Jio')),
-                        DropdownMenuItem(
-                          value: 'airtel',
-                          child: Text('Airtel'),
                         ),
-                        DropdownMenuItem(value: 'vi', child: Text('Vi')),
-                        DropdownMenuItem(value: 'bsnl', child: Text('BSNL')),
-                      ],
-                      onChanged: (v) =>
-                          setSheet(() => operator = v ?? operator),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  DropdownButtonFormField<String>(
+                    initialValue: operator,
+                    decoration:
+                        const InputDecoration(labelText: 'Operator'),
+                    items: const [
+                      DropdownMenuItem(value: 'jio', child: Text('Jio')),
+                      DropdownMenuItem(
+                          value: 'airtel', child: Text('Airtel')),
+                      DropdownMenuItem(value: 'vi', child: Text('Vi')),
+                      DropdownMenuItem(value: 'bsnl', child: Text('BSNL')),
+                    ],
+                    onChanged: (v) =>
+                        setSheet(() => operator = v ?? operator),
+                  ),
+                  const SizedBox(height: 10),
+                  DropdownButtonFormField<String>(
+                    initialValue: tech,
+                    decoration:
+                        const InputDecoration(labelText: 'Technology'),
+                    items: const [
+                      DropdownMenuItem(value: '2G', child: Text('2G')),
+                      DropdownMenuItem(value: '3G', child: Text('3G')),
+                      DropdownMenuItem(value: '4G', child: Text('4G')),
+                      DropdownMenuItem(value: '5G', child: Text('5G')),
+                    ],
+                    onChanged: (v) => setSheet(() => tech = v ?? tech),
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: comment,
+                    decoration: const InputDecoration(
+                        labelText: 'Comment (optional)'),
+                  ),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton(
+                      onPressed: () => Navigator.pop(ctx, true),
+                      child: const Text('Submit report'),
                     ),
-                    const SizedBox(height: 8),
-                    DropdownButtonFormField<String>(
-                      initialValue: tech,
-                      decoration: const InputDecoration(
-                        labelText: 'Technology',
-                      ),
-                      items: const [
-                        DropdownMenuItem(value: '2G', child: Text('2G')),
-                        DropdownMenuItem(value: '3G', child: Text('3G')),
-                        DropdownMenuItem(value: '4G', child: Text('4G')),
-                        DropdownMenuItem(value: '5G', child: Text('5G')),
-                      ],
-                      onChanged: (v) => setSheet(() => tech = v ?? tech),
-                    ),
-                    const SizedBox(height: 8),
-                    TextField(
-                      controller: comment,
-                      decoration: const InputDecoration(
-                        labelText: 'Comment (optional)',
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    SizedBox(
-                      width: double.infinity,
-                      child: FilledButton(
-                        onPressed: () => Navigator.pop(context, true),
-                        child: const Text('Submit report'),
-                      ),
-                    ),
-                  ],
-                );
-              },
+                  ),
+                ],
+              ),
             ),
           ),
         );
       },
     );
+
     if (ok != true) return;
+
     final report = SignalReport(
       id: 'r${DateTime.now().millisecondsSinceEpoch}',
       point: LatLng(

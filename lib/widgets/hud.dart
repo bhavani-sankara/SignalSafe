@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:phosphor_icons/phosphor_icons.dart';
 
 import '../theme/app_theme.dart';
+
+// ---------------------------------------------------------------------------
+// Layout helpers
+// ---------------------------------------------------------------------------
 
 class MaxWidthContent extends StatelessWidget {
   const MaxWidthContent({super.key, required this.child, this.maxWidth = 760});
@@ -20,25 +25,33 @@ class MaxWidthContent extends StatelessWidget {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Glass / card surface
+// ---------------------------------------------------------------------------
+
 class Glass extends StatelessWidget {
   const Glass({
     super.key,
     required this.child,
-    this.padding = const EdgeInsets.all(14),
-    this.radius = 16,
+    this.padding = const EdgeInsets.all(16),
+    this.radius = 20.0,
     this.color,
+    this.elevation = 0,
   });
 
   final Widget child;
   final EdgeInsets padding;
   final double radius;
   final Color? color;
+  final double elevation;
 
   @override
   Widget build(BuildContext context) {
     final pal = context.palette;
     return Material(
       color: color ?? pal.surface,
+      elevation: elevation,
+      shadowColor: Colors.black.withValues(alpha: 0.08),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(radius),
         side: BorderSide(color: pal.border),
@@ -48,6 +61,10 @@ class Glass extends StatelessWidget {
     );
   }
 }
+
+// ---------------------------------------------------------------------------
+// Route preview — illustrative map thumbnail
+// ---------------------------------------------------------------------------
 
 class RoutePreview extends StatelessWidget {
   const RoutePreview({super.key, this.height = 124});
@@ -78,116 +95,167 @@ class _RoutePreviewPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final dark = palette == SignalPalette.dark;
     final bounds = Offset.zero & size;
+
+    // Background
     canvas.drawRect(
       bounds,
-      Paint()..color = dark ? palette.ink : const Color(0xFFF2EFE9),
+      Paint()
+        ..color = dark ? const Color(0xFF0E1512) : const Color(0xFFEEEBE3),
     );
 
+    // Green area (park/forest)
     final park = Path()
-      ..moveTo(size.width * 0.48, size.height * 0.26)
-      ..lineTo(size.width * 0.88, size.height * 0.31)
-      ..lineTo(size.width * 0.91, size.height * 0.88)
-      ..lineTo(size.width * 0.43, size.height * 0.92)
+      ..moveTo(size.width * 0.46, size.height * 0.18)
+      ..lineTo(size.width * 0.9, size.height * 0.24)
+      ..lineTo(size.width * 0.93, size.height * 0.9)
+      ..lineTo(size.width * 0.4, size.height * 0.95)
       ..close();
     canvas.drawPath(
       park,
-      Paint()..color = dark ? palette.elevated : const Color(0xFFCBE7CF),
+      Paint()
+        ..color = dark
+            ? const Color(0xFF1A2E1E)
+            : const Color(0xFFC8E6C9).withValues(alpha: 0.7),
     );
 
-    final roadPaint = Paint()
-      ..color = Colors.white
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 9
-      ..strokeCap = StrokeCap.round;
-    final road = Path()
-      ..moveTo(-size.width * 0.05, size.height * 0.68)
+    // Water body
+    final water = Path()
+      ..moveTo(size.width * 0.0, size.height * 0.3)
       ..cubicTo(
-        size.width * 0.25,
-        size.height * 0.44,
-        size.width * 0.62,
-        size.height * 1.04,
-        size.width * 1.05,
-        size.height * 0.56,
+        size.width * 0.08, size.height * 0.18,
+        size.width * 0.22, size.height * 0.26,
+        size.width * 0.18, size.height * 0.46,
+      )
+      ..lineTo(size.width * 0.0, size.height * 0.5)
+      ..close();
+    canvas.drawPath(
+      water,
+      Paint()
+        ..color = dark
+            ? const Color(0xFF162A30)
+            : const Color(0xFFB3E5FC).withValues(alpha: 0.6),
+    );
+
+    // Roads (white)
+    final roadPaint = Paint()
+      ..color = dark
+          ? Colors.white.withValues(alpha: 0.12)
+          : Colors.white.withValues(alpha: 0.9)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 7
+      ..strokeCap = StrokeCap.round;
+
+    final road = Path()
+      ..moveTo(-size.width * 0.05, size.height * 0.72)
+      ..cubicTo(
+        size.width * 0.22, size.height * 0.5,
+        size.width * 0.65, size.height * 1.02,
+        size.width * 1.05, size.height * 0.52,
       );
     canvas.drawPath(road, roadPaint);
-    final sideRoad = Path()
-      ..moveTo(size.width * 0.18, -size.height * 0.1)
-      ..cubicTo(
-        size.width * 0.32,
-        size.height * 0.34,
-        size.width * 0.12,
-        size.height * 0.76,
-        size.width * 0.2,
-        size.height * 1.1,
-      );
-    canvas.drawPath(sideRoad, roadPaint);
 
-    final route = Path()
-      ..moveTo(size.width * 0.24, size.height * 0.18)
+    final sideRoad = Path()
+      ..moveTo(size.width * 0.2, -size.height * 0.1)
       ..cubicTo(
-        size.width * 0.38,
-        size.height * 0.52,
-        size.width * 0.61,
-        size.height * 0.8,
-        size.width * 0.83,
-        size.height * 0.58,
+        size.width * 0.3, size.height * 0.3,
+        size.width * 0.1, size.height * 0.74,
+        size.width * 0.22, size.height * 1.1,
       );
-    final routeCasing = Paint()
-      ..color = Colors.white
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 11
-      ..strokeCap = StrokeCap.round;
-    canvas.drawPath(route, routeCasing);
-    final routePaint = Paint()
-      ..color = palette.route
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 6
-      ..strokeCap = StrokeCap.round;
-    canvas.drawPath(route, routePaint);
-    final metrics = route.computeMetrics();
-    for (final metric in metrics) {
-      for (var i = 4; i <= 8; i++) {
-        final point = metric
-            .getTangentForOffset(metric.length * i / 12)
-            ?.position;
-        if (point != null) {
-          canvas.drawCircle(point, 4, Paint()..color = palette.moderate);
-        }
+    canvas.drawPath(sideRoad, roadPaint..strokeWidth = 5);
+
+    // Route casing (white glow)
+    final route = Path()
+      ..moveTo(size.width * 0.22, size.height * 0.14)
+      ..cubicTo(
+        size.width * 0.36, size.height * 0.5,
+        size.width * 0.62, size.height * 0.78,
+        size.width * 0.85, size.height * 0.54,
+      );
+
+    canvas.drawPath(
+      route,
+      Paint()
+        ..color = Colors.white
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 10
+        ..strokeCap = StrokeCap.round,
+    );
+
+    // Route line — teal with amber patch in the middle
+    final metrics = route.computeMetrics().toList();
+    if (metrics.isNotEmpty) {
+      final m = metrics.first;
+      final totalLen = m.length;
+
+      void drawSegment(double from, double to, Color color) {
+        final sub = m.extractPath(totalLen * from, totalLen * to);
+        canvas.drawPath(
+          sub,
+          Paint()
+            ..color = color
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 5
+            ..strokeCap = StrokeCap.round,
+        );
+      }
+
+      drawSegment(0.0, 0.42, palette.route);
+      drawSegment(0.42, 0.68, palette.moderate);
+      drawSegment(0.68, 1.0, palette.route);
+    }
+
+    // Dotted overlay on the amber segment
+    final amberDot = Paint()
+      ..color = Colors.white.withValues(alpha: 0.6)
+      ..style = PaintingStyle.fill;
+    if (metrics.isNotEmpty) {
+      final m = metrics.first;
+      for (var t = 0.44; t < 0.66; t += 0.06) {
+        final pt = m.getTangentForOffset(m.length * t)?.position;
+        if (pt != null) canvas.drawCircle(pt, 2.5, amberDot);
       }
     }
 
-    final origin = Offset(size.width * 0.24, size.height * 0.18);
+    // Origin dot
+    final origin = Offset(size.width * 0.22, size.height * 0.14);
+    canvas.drawCircle(
+        origin, 10, Paint()..color = Colors.white);
     canvas.drawCircle(
       origin,
-      11,
-      Paint()
-        ..color = Colors.white
-        ..style = PaintingStyle.fill,
-    );
-    canvas.drawCircle(
-      origin,
-      11,
+      10,
       Paint()
         ..color = palette.beacon
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 4,
+        ..strokeWidth = 3.5,
     );
-    final destination = Offset(size.width * 0.83, size.height * 0.58);
-    canvas.drawCircle(destination, 13, Paint()..color = palette.destination);
-    canvas.drawCircle(destination, 5, Paint()..color = Colors.white);
+    canvas.drawCircle(origin, 4, Paint()..color = palette.beacon);
 
-    if (dark) {
-      canvas.drawRect(
-        bounds,
-        Paint()..color = Colors.black.withValues(alpha: 0.18),
-      );
-    }
+    // Destination pin
+    final dest = Offset(size.width * 0.85, size.height * 0.54);
+    final pinPath = Path()
+      ..addOval(Rect.fromCircle(center: dest, radius: 12));
+    canvas.drawPath(pinPath, Paint()..color = palette.destination);
+    canvas.drawCircle(dest, 4.5, Paint()..color = Colors.white);
+
+    // Vignette
+    final vignette = RadialGradient(
+      center: Alignment.center,
+      radius: 0.9,
+      colors: [
+        Colors.transparent,
+        Colors.black.withValues(alpha: dark ? 0.28 : 0.1),
+      ],
+    ).createShader(bounds);
+    canvas.drawRect(bounds, Paint()..shader = vignette);
   }
 
   @override
-  bool shouldRepaint(_RoutePreviewPainter oldDelegate) =>
-      oldDelegate.palette != palette;
+  bool shouldRepaint(_RoutePreviewPainter old) => old.palette != palette;
 }
+
+// ---------------------------------------------------------------------------
+// Signal chips & bars
+// ---------------------------------------------------------------------------
 
 class SignalChip extends StatelessWidget {
   const SignalChip({
@@ -207,33 +275,32 @@ class SignalChip extends StatelessWidget {
     final color = pal.level(level);
     final foreground = pal.onLevelContainer(level);
     final background = pal.levelContainer(level);
-    final text =
-        label ??
+    final text = label ??
         switch (level) {
-          'good' => 'Good',
+          'good' => 'Good signal',
           'moderate' => 'Moderate',
-          'weak' => 'Weak',
+          'weak' => 'Weak signal',
           _ => 'No signal',
         };
+
     return Container(
       padding: EdgeInsets.symmetric(
         horizontal: compact ? 8 : 10,
-        vertical: compact ? 4 : 6,
+        vertical: compact ? 4 : 5,
       ),
       decoration: BoxDecoration(
         color: background,
         borderRadius: BorderRadius.circular(99),
-        border: Border.all(color: background),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: 7,
-            height: 7,
+            width: compact ? 6 : 7,
+            height: compact ? 6 : 7,
             decoration: BoxDecoration(color: color, shape: BoxShape.circle),
           ),
-          const SizedBox(width: 6),
+          const SizedBox(width: 5),
           Text(
             text,
             style: TextStyle(
@@ -265,15 +332,17 @@ class SignalBars extends StatelessWidget {
     const heights = [6.0, 10.0, 14.0, 18.0];
     return ExcludeSemantics(
       child: SizedBox(
-        width: 24,
-        height: 24,
+        width: 22,
+        height: 22,
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
             for (var i = 0; i < heights.length; i++) ...[
               if (i > 0) const SizedBox(width: 2),
-              Container(
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeOut,
                 width: 3,
                 height: heights[i],
                 decoration: BoxDecoration(
@@ -288,6 +357,125 @@ class SignalBars extends StatelessWidget {
     );
   }
 }
+
+// ---------------------------------------------------------------------------
+// Round map control button
+// ---------------------------------------------------------------------------
+
+class RoundIconButton extends StatelessWidget {
+  const RoundIconButton({
+    super.key,
+    required this.icon,
+    required this.onTap,
+    this.tooltip,
+    this.selected = false,
+    this.sos = false,
+    this.size = 48,
+  });
+
+  final IconData icon;
+  final VoidCallback onTap;
+  final String? tooltip;
+  final bool selected;
+  final bool sos;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    final pal = context.palette;
+    final bg = sos
+        ? pal.sos
+        : selected
+            ? pal.secondaryContainer
+            : pal.surface;
+    final fg = sos
+        ? Colors.white
+        : selected
+            ? pal.onSecondaryContainer
+            : pal.text;
+
+    return Tooltip(
+      message: tooltip ?? '',
+      child: Material(
+        color: bg,
+        elevation: selected || sos ? 0 : 3,
+        shadowColor: Colors.black.withValues(alpha: 0.18),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: SizedBox(
+            width: size,
+            height: size,
+            child: Icon(icon, color: fg, size: 20),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Section headings
+// ---------------------------------------------------------------------------
+
+class SectionLabel extends StatelessWidget {
+  const SectionLabel(this.text, {super.key});
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8, top: 4),
+      child: Text(
+        text.toUpperCase(),
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: context.palette.beacon,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.8,
+            ),
+      ),
+    );
+  }
+}
+
+class SectionHeading extends StatelessWidget {
+  const SectionHeading(this.text, {super.key, this.subtitle});
+
+  final String text;
+  final String? subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12, top: 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            text,
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  color: context.palette.text,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -0.1,
+                ),
+          ),
+          if (subtitle != null) ...[
+            const SizedBox(height: 3),
+            Text(
+              subtitle!,
+              style: TextStyle(color: context.palette.muted, fontSize: 13),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Source tag
+// ---------------------------------------------------------------------------
 
 class SourceTag extends StatelessWidget {
   const SourceTag({super.key, required this.source});
@@ -306,7 +494,7 @@ class SourceTag extends StatelessWidget {
       label,
       style: TextStyle(
         fontSize: 11,
-        letterSpacing: 0.2,
+        letterSpacing: 0.3,
         color: pal.muted,
         fontWeight: FontWeight.w500,
       ),
@@ -314,114 +502,174 @@ class SourceTag extends StatelessWidget {
   }
 }
 
-class RoundIconButton extends StatelessWidget {
-  const RoundIconButton({
+// ---------------------------------------------------------------------------
+// Signal coverage bar  (the chunky segmented infographic)
+// ---------------------------------------------------------------------------
+
+class SignalCoverageBar extends StatelessWidget {
+  const SignalCoverageBar({
     super.key,
-    required this.icon,
-    required this.onTap,
-    this.tooltip,
-    this.selected = false,
-    this.sos = false,
+    required this.stats,
+    this.height = 10,
+    this.showLabels = false,
   });
 
-  final IconData icon;
-  final VoidCallback onTap;
-  final String? tooltip;
-  final bool selected;
-  final bool sos;
+  final Map<String, int> stats;
+  final double height;
+  final bool showLabels;
 
   @override
   Widget build(BuildContext context) {
     final pal = context.palette;
-    final bg = sos
-        ? pal.sos
-        : selected
-        ? pal.secondaryContainer
-        : pal.surface;
-    final fg = sos || selected
-        ? (sos ? Colors.white : pal.onSecondaryContainer)
-        : pal.text;
-    return Tooltip(
-      message: tooltip ?? '',
-      child: Material(
-        color: bg,
-        elevation: selected || sos ? 0 : 2,
-        shadowColor: Colors.black.withValues(alpha: 0.14),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: onTap,
-          customBorder: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: SizedBox(
-            width: 48,
-            height: 48,
-            child: Icon(icon, color: fg, size: 22),
-          ),
-        ),
-      ),
-    );
-  }
-}
+    final levels = ['good', 'moderate', 'weak', 'none'];
 
-class SectionLabel extends StatelessWidget {
-  const SectionLabel(this.text, {super.key});
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8, top: 4),
-      child: Text(
-        text,
-        style: Theme.of(context).textTheme.labelLarge?.copyWith(
-          fontSize: 14,
-          fontWeight: FontWeight.w500,
-          color: context.palette.beacon,
-        ),
-      ),
-    );
-  }
-}
-
-class SectionHeading extends StatelessWidget {
-  const SectionHeading(this.text, {super.key, this.subtitle});
-
-  final String text;
-  final String? subtitle;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12, top: 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            text,
-            style: Theme.of(context).textTheme.labelLarge?.copyWith(
-              fontSize: 14,
-              color: context.palette.beacon,
-              fontWeight: FontWeight.w500,
+    return Semantics(
+      label: 'Signal coverage: '
+          '${stats['good'] ?? 0}% good, '
+          '${stats['moderate'] ?? 0}% moderate, '
+          '${stats['weak'] ?? 0}% weak, '
+          '${stats['none'] ?? 0}% no signal',
+      child: ExcludeSemantics(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(height / 2),
+              child: SizedBox(
+                height: height,
+                child: Row(
+                  children: [
+                    for (final level in levels)
+                      Expanded(
+                        flex: (stats[level] ?? 0).clamp(1, 100),
+                        child: Container(
+                          margin: const EdgeInsets.only(right: 1.5),
+                          color: pal.level(level),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
             ),
-          ),
-          if (subtitle != null) ...[
-            const SizedBox(height: 4),
-            Text(
-              subtitle!,
-              style: TextStyle(color: context.palette.muted, fontSize: 13),
-            ),
+            if (showLabels) ...[
+              const SizedBox(height: 6),
+              Row(
+                children: [
+                  for (final level in levels)
+                    Expanded(
+                      flex: (stats[level] ?? 0).clamp(1, 100),
+                      child: Text(
+                        '${stats[level] ?? 0}%',
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: pal.muted,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        overflow: TextOverflow.clip,
+                        maxLines: 1,
+                      ),
+                    ),
+                ],
+              ),
+            ],
           ],
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Stat pill row for route cards
+// ---------------------------------------------------------------------------
+
+class RouteStatRow extends StatelessWidget {
+  const RouteStatRow({
+    super.key,
+    required this.distanceKm,
+    required this.durationMin,
+    this.lowSignalMin = 0,
+    this.iconData,
+  });
+
+  final double distanceKm;
+  final int durationMin;
+  final int lowSignalMin;
+  final IconData? iconData;
+
+  @override
+  Widget build(BuildContext context) {
+    final pal = context.palette;
+    return Wrap(
+      spacing: 8,
+      runSpacing: 6,
+      children: [
+        _pill(
+          context,
+          icon: PhosphorIconsRegular.path,
+          label: '${distanceKm.toStringAsFixed(0)} km',
+          color: pal.muted,
+        ),
+        _pill(
+          context,
+          icon: PhosphorIconsRegular.clock,
+          label: formatDuration(durationMin),
+          color: pal.muted,
+        ),
+        if (lowSignalMin > 0)
+          _pill(
+            context,
+            icon: PhosphorIconsRegular.wifiSlash,
+            label: '$lowSignalMin min low signal',
+            color: pal.moderate,
+            tinted: true,
+          ),
+      ],
+    );
+  }
+
+  Widget _pill(
+    BuildContext context, {
+    required IconData icon,
+    required String label,
+    required Color color,
+    bool tinted = false,
+  }) {
+    final pal = context.palette;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+      decoration: BoxDecoration(
+        color: tinted
+            ? pal.warningContainer.withValues(alpha: 0.6)
+            : pal.elevated,
+        borderRadius: BorderRadius.circular(99),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 13, color: color),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: color,
+            ),
+          ),
         ],
       ),
     );
   }
 }
 
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
 IconData categoryIcon(String category) {
   return switch (category) {
-    'hospital' => PhosphorIconsRegular.heartbeat,
+    'hospital' => PhosphorIconsRegular.firstAid,
     'police' => PhosphorIconsRegular.shieldChevron,
     'fuel' => PhosphorIconsRegular.gasPump,
     'hotel' => PhosphorIconsRegular.bed,
@@ -436,16 +684,34 @@ IconData categoryIcon(String category) {
 }
 
 String operatorLabel(String id) => switch (id) {
-  'jio' => 'Jio',
-  'airtel' => 'Airtel',
-  'vi' => 'Vi',
-  'bsnl' => 'BSNL',
-  _ => 'All networks',
-};
+      'jio' => 'Jio',
+      'airtel' => 'Airtel',
+      'vi' => 'Vi',
+      'bsnl' => 'BSNL',
+      _ => 'All networks',
+    };
 
 String formatDuration(int minutes) {
   final h = minutes ~/ 60;
   final m = minutes % 60;
   if (h == 0) return '${m}m';
+  if (m == 0) return '${h}h';
   return '${h}h ${m}m';
+}
+
+// ---------------------------------------------------------------------------
+// Animated fade+slide entrance wrapper
+// ---------------------------------------------------------------------------
+
+extension AnimateIn on Widget {
+  Widget fadeSlideIn({int delayMs = 0, int durationMs = 320}) {
+    return animate(delay: Duration(milliseconds: delayMs))
+        .fadeIn(duration: Duration(milliseconds: durationMs), curve: Curves.easeOut)
+        .slideY(
+          begin: 0.06,
+          end: 0,
+          duration: Duration(milliseconds: durationMs + 40),
+          curve: Curves.easeOut,
+        );
+  }
 }

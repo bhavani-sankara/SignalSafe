@@ -1,16 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:signalsafe/core/session.dart';
 import 'package:signalsafe/features/safety/safety_screen.dart';
 
 void main() {
   testWidgets('safety screen uses honest demo disclosure and held SOS', (
     tester,
   ) async {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    await container.read(catalogProvider.future);
     await tester.pumpWidget(
-      const ProviderScope(child: MaterialApp(home: SafetyScreen())),
+      UncontrolledProviderScope(
+        container: container,
+        child: const MaterialApp(home: SafetyScreen()),
+      ),
     );
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
 
     expect(find.text('Demo mode'), findsOneWidget);
     expect(

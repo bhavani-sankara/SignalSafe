@@ -139,8 +139,8 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen> {
                       constraints: const BoxConstraints(maxWidth: 760),
                       child: LayoutBuilder(
                         builder: (context, constraints) {
-                          final compact = constraints.maxHeight < 620;
-                          final veryCompact = constraints.maxHeight < 460;
+                          final compact = constraints.maxHeight < 840;
+                          final veryCompact = constraints.maxHeight < 600;
                           return Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
@@ -270,7 +270,7 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen> {
                       ),
                       Text(
                         turn,
-                        maxLines: compact ? 1 : 2,
+                        maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           color: foreground,
@@ -503,25 +503,24 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen> {
                   ),
                 ),
               ),
-              if (recovery != null) ...[
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  child: Divider(height: 1, color: pal.border),
-                ),
-                Row(
-                  children: [
-                    Icon(
-                      PhosphorIconsRegular.wifiHigh,
-                      color: pal.beacon,
-                      size: 20,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            '${recovery.name} · ${(distance(here, recovery.point) / 1000).toStringAsFixed(1)} km',
+            ],
+            if (recovery != null) ...[
+              Padding(
+                padding: EdgeInsets.symmetric(vertical: compact ? 6 : 8),
+                child: Divider(height: 1, color: pal.border),
+              ),
+              Row(
+                children: [
+                  Icon(
+                    PhosphorIconsRegular.wifiHigh,
+                    color: pal.beacon,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: compact
+                        ? Text(
+                            '${recovery.name} · ${(distance(here, recovery.point) / 1000).toStringAsFixed(1)} km away',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
@@ -529,19 +528,34 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen> {
                               fontWeight: FontWeight.w600,
                               fontSize: 13,
                             ),
+                          )
+                        : Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '${recovery.name} · ${(distance(here, recovery.point) / 1000).toStringAsFixed(1)} km',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: pal.beacon,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 13,
+                                ),
+                              ),
+                              Text(
+                                recovery.subtitle,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: pal.muted,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
                           ),
-                          Text(
-                            recovery.subtitle,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(color: pal.muted, fontSize: 12),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+                  ),
+                ],
+              ),
             ],
             if (session.simulateLoss || level == 'none') ...[
               const SizedBox(height: 8),

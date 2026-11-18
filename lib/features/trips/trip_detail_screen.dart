@@ -174,7 +174,7 @@ class TripDetailScreen extends ConsumerWidget {
           FilledButton(
             style: FilledButton.styleFrom(
               backgroundColor: context.palette.sos,
-              foregroundColor: Colors.white,
+              foregroundColor: Theme.of(context).colorScheme.onError,
             ),
             onPressed: () => Navigator.pop(context, true),
             child: const Text('Remove'),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class SignalPalette {
   const SignalPalette({
@@ -58,145 +59,149 @@ class SignalPalette {
   final Color destination;
 
   static const dark = SignalPalette(
-    ink: Color(0xFF111917),
+    ink: Color(0xFF0E1512),
     surface: Color(0xFF151D1A),
-    elevated: Color(0xFF1F2926),
-    text: Color(0xFFE0E5E3),
-    muted: Color(0xFFC0C9C6),
-    beacon: Color(0xFF80D8CC),
-    route: Color(0xFF80CBC4),
-    good: Color(0xFFC9F0D5),
-    moderate: Color(0xFFFFE7B3),
-    weak: Color(0xFFFFD8A8),
-    none: Color(0xFFBAC4C1),
-    sos: Color(0xFFFFB4AB),
-    border: Color(0xFF404947),
+    elevated: Color(0xFF1E2825),
+    text: Color(0xFFE2E8E5),
+    muted: Color(0xFF8FA39E),
+    beacon: Color(0xFF4DB6A8),
+    route: Color(0xFF4DB6A8),
+    good: Color(0xFF4CAF80),
+    moderate: Color(0xFFFFB74D),
+    weak: Color(0xFFFF8A65),
+    none: Color(0xFF78909C),
+    sos: Color(0xFFEF5350),
+    border: Color(0xFF2C3A36),
     glass: Color(0xFF1A2421),
-    primaryContainer: Color(0xFF005047),
-    onPrimaryContainer: Color(0xFF94F2E2),
-    secondaryContainer: Color(0xFF244C46),
-    onSecondaryContainer: Color(0xFFD4EFE8),
-    errorContainer: Color(0xFF93000A),
-    onErrorContainer: Color(0xFFFFDAD6),
-    warningContainer: Color(0xFF5B3C00),
-    onWarningContainer: Color(0xFFFFE7B3),
-    successContainer: Color(0xFF0A3D1F),
-    onSuccessContainer: Color(0xFFC9F0D5),
-    outline: Color(0xFF89938F),
-    destination: Color(0xFFFF8A80),
+    primaryContainer: Color(0xFF004D44),
+    onPrimaryContainer: Color(0xFF80CBC4),
+    secondaryContainer: Color(0xFF1E3832),
+    onSecondaryContainer: Color(0xFFB2DFDB),
+    errorContainer: Color(0xFF6E1A17),
+    onErrorContainer: Color(0xFFFFCDD2),
+    warningContainer: Color(0xFF4A2D00),
+    onWarningContainer: Color(0xFFFFE0B2),
+    successContainer: Color(0xFF0D3320),
+    onSuccessContainer: Color(0xFFA5D6A7),
+    outline: Color(0xFF4A6560),
+    destination: Color(0xFFFF7043),
   );
 
   static const light = SignalPalette(
-    ink: Color(0xFFF8FAF9),
+    ink: Color(0xFFF5F8F7),
     surface: Color(0xFFFFFFFF),
-    elevated: Color(0xFFEBF0EE),
-    text: Color(0xFF191C1B),
-    muted: Color(0xFF404947),
-    beacon: Color(0xFF00796B),
+    elevated: Color(0xFFECF2F0),
+    text: Color(0xFF0D1B18),
+    muted: Color(0xFF4D6560),
+    beacon: Color(0xFF00897B),
     route: Color(0xFF00897B),
-    good: Color(0xFF0A3D1F),
-    moderate: Color(0xFF5B3C00),
-    weak: Color(0xFF8A4F00),
-    none: Color(0xFF59615E),
-    sos: Color(0xFFB3261E),
-    border: Color(0xFFC0C9C6),
+    good: Color(0xFF2E7D32),
+    moderate: Color(0xFFE65100),
+    weak: Color(0xFFBF360C),
+    none: Color(0xFF455A64),
+    sos: Color(0xFFC62828),
+    border: Color(0xFFD0DCDA),
     glass: Color(0xFFFFFFFF),
-    primaryContainer: Color(0xFFB2EBE2),
-    onPrimaryContainer: Color(0xFF00201C),
-    secondaryContainer: Color(0xFFCDE8E3),
-    onSecondaryContainer: Color(0xFF00201C),
-    errorContainer: Color(0xFFF9DEDC),
-    onErrorContainer: Color(0xFF410E0B),
-    warningContainer: Color(0xFFFFE7B3),
-    onWarningContainer: Color(0xFF5B3C00),
-    successContainer: Color(0xFFC9F0D5),
-    onSuccessContainer: Color(0xFF0A3D1F),
-    outline: Color(0xFF6F7977),
-    destination: Color(0xFFEA4335),
+    primaryContainer: Color(0xFFB2DFDB),
+    onPrimaryContainer: Color(0xFF00251F),
+    secondaryContainer: Color(0xFFCCE8E4),
+    onSecondaryContainer: Color(0xFF002019),
+    errorContainer: Color(0xFFFFCDD2),
+    onErrorContainer: Color(0xFF4E0000),
+    warningContainer: Color(0xFFFFE0B2),
+    onWarningContainer: Color(0xFF3E1E00),
+    successContainer: Color(0xFFC8E6C9),
+    onSuccessContainer: Color(0xFF0A2E10),
+    outline: Color(0xFF5C7570),
+    destination: Color(0xFFE53935),
   );
 
   Color level(String level) => switch (level) {
-    'good' => good,
-    'moderate' => moderate,
-    'weak' => weak,
-    _ => none,
-  };
+        'good' => good,
+        'moderate' => moderate,
+        'weak' => weak,
+        _ => none,
+      };
 
   Color levelContainer(String level) => switch (level) {
-    'good' => successContainer,
-    'moderate' || 'weak' => warningContainer,
-    _ => elevated,
-  };
+        'good' => successContainer,
+        'moderate' || 'weak' => warningContainer,
+        _ => elevated,
+      };
 
   Color onLevelContainer(String level) => switch (level) {
-    'good' => onSuccessContainer,
-    'moderate' || 'weak' => onWarningContainer,
-    _ => text,
-  };
+        'good' => onSuccessContainer,
+        'moderate' || 'weak' => onWarningContainer,
+        _ => text,
+      };
 }
 
 class AppTheme {
   static ThemeData of(Brightness brightness) {
-    final pal = brightness == Brightness.dark
-        ? SignalPalette.dark
-        : SignalPalette.light;
-    final scheme =
-        ColorScheme.fromSeed(
-          seedColor: pal.beacon,
-          brightness: brightness,
-        ).copyWith(
-          primary: pal.beacon,
-          onPrimary: brightness == Brightness.dark
-              ? const Color(0xFF003731)
-              : Colors.white,
-          primaryContainer: pal.primaryContainer,
-          onPrimaryContainer: pal.onPrimaryContainer,
-          secondary: pal.route,
-          onSecondary: brightness == Brightness.dark
-              ? const Color(0xFF003733)
-              : Colors.white,
-          secondaryContainer: pal.secondaryContainer,
-          onSecondaryContainer: pal.onSecondaryContainer,
-          error: pal.sos,
-          onError: brightness == Brightness.dark
-              ? const Color(0xFF690005)
-              : Colors.white,
-          errorContainer: pal.errorContainer,
-          onErrorContainer: pal.onErrorContainer,
-          surface: pal.surface,
-          onSurface: pal.text,
-          surfaceContainer: pal.elevated,
-          surfaceContainerHighest: brightness == Brightness.dark
-              ? const Color(0xFF2A3431)
-              : const Color(0xFFE4E9E7),
-          onSurfaceVariant: pal.muted,
-          outline: pal.outline,
-          outlineVariant: pal.border,
-        );
-    final base = ThemeData(colorScheme: scheme, useMaterial3: true);
-    final textTheme = base.textTheme.copyWith(
-      headlineSmall: base.textTheme.headlineSmall?.copyWith(
-        fontSize: 28,
-        height: 36 / 28,
-        fontWeight: FontWeight.w400,
-      ),
-      titleMedium: base.textTheme.titleMedium?.copyWith(
-        fontSize: 16,
-        height: 24 / 16,
-        fontWeight: FontWeight.w500,
-      ),
-      bodyLarge: base.textTheme.bodyLarge?.copyWith(
-        fontSize: 14,
-        height: 20 / 14,
-      ),
-      bodyMedium: base.textTheme.bodyMedium?.copyWith(
-        fontSize: 14,
-        height: 20 / 14,
-      ),
-      labelLarge: base.textTheme.labelLarge?.copyWith(
-        fontWeight: FontWeight.w500,
-      ),
+    final pal =
+        brightness == Brightness.dark ? SignalPalette.dark : SignalPalette.light;
+
+    final scheme = ColorScheme.fromSeed(
+      seedColor: pal.beacon,
+      brightness: brightness,
+    ).copyWith(
+      primary: pal.beacon,
+      onPrimary:
+          brightness == Brightness.dark ? const Color(0xFF002520) : Colors.white,
+      primaryContainer: pal.primaryContainer,
+      onPrimaryContainer: pal.onPrimaryContainer,
+      secondary: pal.route,
+      onSecondary:
+          brightness == Brightness.dark ? const Color(0xFF002520) : Colors.white,
+      secondaryContainer: pal.secondaryContainer,
+      onSecondaryContainer: pal.onSecondaryContainer,
+      error: pal.sos,
+      onError:
+          brightness == Brightness.dark ? const Color(0xFF690005) : Colors.white,
+      errorContainer: pal.errorContainer,
+      onErrorContainer: pal.onErrorContainer,
+      surface: pal.surface,
+      onSurface: pal.text,
+      surfaceContainer: pal.elevated,
+      surfaceContainerHighest: brightness == Brightness.dark
+          ? const Color(0xFF263330)
+          : const Color(0xFFDDE7E5),
+      onSurfaceVariant: pal.muted,
+      outline: pal.outline,
+      outlineVariant: pal.border,
     );
+
+    final base = ThemeData(colorScheme: scheme, useMaterial3: true);
+
+    // DM Sans applied style-by-style to avoid TextTheme? merge API issues
+    TextStyle dm(double size, FontWeight weight,
+            {double? letterSpacing, double? height}) =>
+        GoogleFonts.dmSans(
+          fontSize: size,
+          fontWeight: weight,
+          letterSpacing: letterSpacing,
+          height: height,
+        );
+
+    final textTheme = base.textTheme.copyWith(
+      displaySmall:
+          dm(44, FontWeight.w700, letterSpacing: -1.5, height: 1.05),
+      headlineLarge:
+          dm(34, FontWeight.w700, letterSpacing: -0.5, height: 1.1),
+      headlineMedium:
+          dm(28, FontWeight.w600, letterSpacing: -0.3, height: 1.15),
+      headlineSmall: dm(22, FontWeight.w600, height: 1.2),
+      titleLarge: dm(18, FontWeight.w600, letterSpacing: -0.2),
+      titleMedium: dm(16, FontWeight.w500, letterSpacing: -0.1, height: 1.4),
+      titleSmall: dm(14, FontWeight.w500),
+      bodyLarge: dm(15, FontWeight.w400, height: 1.5),
+      bodyMedium: dm(14, FontWeight.w400, height: 1.5),
+      bodySmall: dm(12, FontWeight.w400, height: 1.4),
+      labelLarge: dm(13, FontWeight.w600, letterSpacing: 0.1),
+      labelMedium: dm(12, FontWeight.w500),
+      labelSmall: dm(11, FontWeight.w500, letterSpacing: 0.3),
+    );
+
     return base.copyWith(
       scaffoldBackgroundColor: pal.ink,
       colorScheme: scheme,
@@ -206,21 +211,26 @@ class AppTheme {
         backgroundColor: pal.ink,
         foregroundColor: pal.text,
         elevation: 0,
+        scrolledUnderElevation: 0,
         centerTitle: false,
         surfaceTintColor: Colors.transparent,
-        titleTextStyle: textTheme.headlineSmall?.copyWith(color: pal.text),
+        titleTextStyle: textTheme.titleLarge?.copyWith(
+          color: pal.text,
+          fontWeight: FontWeight.w700,
+        ),
       ),
       navigationBarTheme: NavigationBarThemeData(
-        height: 80,
-        backgroundColor: pal.elevated,
+        height: 72,
+        backgroundColor: brightness == Brightness.dark
+            ? pal.elevated
+            : pal.surface,
         indicatorColor: pal.secondaryContainer,
         indicatorShape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(14),
         ),
         labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
         labelTextStyle: WidgetStateProperty.resolveWith(
           (states) => textTheme.labelSmall?.copyWith(
-            fontSize: 12,
             fontWeight: states.contains(WidgetState.selected)
                 ? FontWeight.w700
                 : FontWeight.w500,
@@ -231,7 +241,7 @@ class AppTheme {
         ),
         iconTheme: WidgetStateProperty.resolveWith(
           (states) => IconThemeData(
-            size: 24,
+            size: 22,
             color: states.contains(WidgetState.selected)
                 ? pal.beacon
                 : pal.muted,
@@ -241,20 +251,29 @@ class AppTheme {
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
           minimumSize: const Size(48, 48),
-          shape: const StadiumBorder(),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+          textStyle: textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w700),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           minimumSize: const Size(48, 48),
-          shape: const StadiumBorder(),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
           side: BorderSide(color: pal.outline),
+          textStyle: textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600),
         ),
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
           minimumSize: const Size(48, 48),
-          shape: const StadiumBorder(),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+          textStyle: textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600),
         ),
       ),
       bottomSheetTheme: BottomSheetThemeData(
@@ -263,30 +282,34 @@ class AppTheme {
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
         ),
+        dragHandleColor: pal.border,
+        dragHandleSize: const Size(40, 4),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: pal.elevated,
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(14),
           borderSide: BorderSide(color: pal.border),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(14),
           borderSide: BorderSide(color: pal.border),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: pal.beacon, width: 1.4),
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(color: pal.beacon, width: 1.5),
         ),
-        hintStyle: TextStyle(color: pal.muted),
+        hintStyle: TextStyle(color: pal.muted, fontSize: 14),
       ),
       cardTheme: CardThemeData(
         color: pal.surface,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(20),
           side: BorderSide(color: pal.border),
         ),
       ),
@@ -294,8 +317,27 @@ class AppTheme {
         backgroundColor: pal.surface,
         selectedColor: pal.secondaryContainer,
         side: BorderSide(color: pal.border),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        labelStyle: TextStyle(color: pal.text),
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        labelStyle: TextStyle(
+          color: pal.text,
+          fontSize: 13,
+          fontWeight: FontWeight.w500,
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+      ),
+      listTileTheme: ListTileThemeData(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 0, vertical: 2),
+        minLeadingWidth: 0,
+        iconColor: pal.muted,
+      ),
+      switchTheme: SwitchThemeData(
+        thumbColor: WidgetStateProperty.resolveWith((states) =>
+            states.contains(WidgetState.selected) ? pal.beacon : null),
+        trackColor: WidgetStateProperty.resolveWith((states) =>
+            states.contains(WidgetState.selected)
+                ? pal.beacon.withValues(alpha: 0.35)
+                : null),
       ),
     );
   }
@@ -313,9 +355,9 @@ TextStyle dataStyle(
   double size = 14,
   FontWeight? weight,
 }) {
-  return TextStyle(
+  return GoogleFonts.dmSans(
     fontSize: size,
-    fontWeight: weight ?? FontWeight.w500,
+    fontWeight: weight ?? FontWeight.w600,
     color: context.palette.text,
   );
 }

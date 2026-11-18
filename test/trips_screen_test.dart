@@ -12,6 +12,7 @@ void main() {
 
     expect(find.text('Hyderabad to Srisailam – Weekend Trip'), findsOneWidget);
     expect(find.textContaining('Offline plan'), findsOneWidget);
+    expect(find.text('54 min low/no signal on this route'), findsOneWidget);
     expect(find.text('Prepared offline'), findsNothing);
   });
 }
