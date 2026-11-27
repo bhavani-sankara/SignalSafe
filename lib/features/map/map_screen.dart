@@ -325,11 +325,10 @@ class _MapScreenState extends ConsumerState<MapScreen>
       options: MapOptions(
         initialCenter: session.here,
         initialZoom: directions ? 8.4 : 11.5,
-        // Land-coloured backdrop so tiles that are still downloading read
-        // as quiet map instead of grey holes.
-        backgroundColor: Theme.of(context).brightness == Brightness.dark
-            ? const Color(0xFF1B2029)
-            : const Color(0xFFECEAE4),
+        // Standard OSM land colour, so tiles that are still downloading
+        // read as map instead of grey holes. Tiles are shown unfiltered in
+        // both themes, like the original app.
+        backgroundColor: const Color(0xFFF2EFE9),
         onMapReady: () {
           if (directions) _fitRoutes(session);
         },
@@ -349,9 +348,6 @@ class _MapScreenState extends ConsumerState<MapScreen>
           tileDisplay: const TileDisplay.fadeIn(
             duration: Duration(milliseconds: 220),
           ),
-          tileBuilder: Theme.of(context).brightness == Brightness.dark
-              ? darkModeTileBuilder
-              : _calmTileBuilder,
         ),
         if (session.overlayOn && _blackspots)
           PolygonLayer(
@@ -395,24 +391,6 @@ class _MapScreenState extends ConsumerState<MapScreen>
           attributions: [TextSourceAttribution('OpenStreetMap contributors')],
         ),
       ],
-    );
-  }
-
-  /// Slightly lighter, lower-contrast OSM tiles so the route and pins are
-  /// what stands out (the "calm pastel map" look).
-  static Widget _calmTileBuilder(
-    BuildContext context,
-    Widget tile,
-    TileImage image,
-  ) {
-    return ColorFiltered(
-      colorFilter: const ColorFilter.matrix(<double>[
-        0.86, 0.06, 0.06, 0, 18, //
-        0.05, 0.88, 0.05, 0, 18, //
-        0.05, 0.06, 0.86, 0, 20, //
-        0, 0, 0, 1, 0,
-      ]),
-      child: tile,
     );
   }
 
