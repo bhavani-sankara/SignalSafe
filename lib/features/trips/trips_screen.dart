@@ -99,9 +99,9 @@ class TripsScreen extends ConsumerWidget {
 
                   SheetSectionTitle(
                     'Saved journeys',
-                    subtitle: journeys.isEmpty
-                        ? null
-                        : '${journeys.length} saved · swipe for more',
+                    subtitle: journeys.length > 1
+                        ? '${journeys.length} saved · swipe for more'
+                        : null,
                   ),
 
                   if (journeys.isEmpty)

@@ -213,18 +213,17 @@ class _Branch extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // The fade runs outside TickerMode so a tab that is leaving can still
+    // animate out; only the tab's own content stops ticking.
     return IgnorePointer(
       ignoring: !active,
-      child: TickerMode(
-        enabled: active,
-        child: ExcludeSemantics(
-          excluding: !active,
-          child: AnimatedOpacity(
-            opacity: active ? 1 : 0,
-            duration: duration,
-            curve: Curves.easeOut,
-            child: child,
-          ),
+      child: ExcludeSemantics(
+        excluding: !active,
+        child: AnimatedOpacity(
+          opacity: active ? 1 : 0,
+          duration: duration,
+          curve: Curves.easeOut,
+          child: TickerMode(enabled: active, child: child),
         ),
       ),
     );
