@@ -58,3 +58,14 @@ The matching dark roles are defined alongside the light roles in `lib/theme/app_
 
 - Respect system text scaling, safe areas, dark mode, and reduced motion where supported.
 - Keep copy concise, truthful, and action-oriented; avoid implying live coverage, emergency delivery, or downloaded maps when those features are not implemented.
+
+## Motion (Maps-style redesign)
+
+All timings live in `lib/theme/motion.dart`; respect reduced motion (`Motion.reduced`).
+
+- **Sheets:** `SpringSheet` has peek / half / full detents and settles with a critically damped spring (~420 stiffness, no bounce) that keeps the fling velocity. At full height the floating search chrome slides up and fades, and the sheet header becomes the top bar.
+- **Modals:** `showStagedSheet` fades the scrim in first (to ~40% black), then glides the sheet up. Every modal sheet has a round close button.
+- **Directions:** stage the reveal. Skeletons first, then the camera fits the routes (~650 ms), the routes draw in, and the time/signal bubbles pop in last.
+- **One filled action per surface.** Secondary actions are tonal pills (the `OutlinedButton` theme is tonal and borderless).
+- **Navigation:** night-navy theme, perspective tilt and camera dive on entry, coverage warning under the turn card, Re-center after panning.
+- **Loading:** shimmer skeletons, never a bare spinner. Tabs cross-fade in ~200 ms.
