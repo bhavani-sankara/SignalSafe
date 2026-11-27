@@ -9,6 +9,7 @@ import '../../core/geo.dart';
 import '../../core/models.dart';
 import '../../core/session.dart';
 import '../../theme/app_theme.dart';
+import '../../theme/motion.dart';
 import '../../widgets/hud.dart';
 import '../../widgets/session_gate.dart';
 
@@ -53,9 +54,10 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
                   children: [
                     // ── Operator filter chips ──────────────────────────
                     SizedBox(
-                      height: 38,
+                      height: 42,
                       child: ListView(
                         scrollDirection: Axis.horizontal,
+                        clipBehavior: Clip.none,
                         children: [
                           for (final option in const [
                             ('all', 'All'),
@@ -70,32 +72,42 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
                                 onTap: () => setState(
                                     () => _operatorFilter = option.$1),
                                 child: AnimatedContainer(
-                                  duration: const Duration(milliseconds: 180),
+                                  duration: Motion.quick,
+                                  curve: Motion.enter,
+                                  margin: const EdgeInsets.symmetric(
+                                      vertical: 3),
                                   padding: const EdgeInsets.symmetric(
-                                      horizontal: 14, vertical: 7),
+                                      horizontal: 16),
+                                  alignment: Alignment.center,
                                   decoration: BoxDecoration(
                                     color: _operatorFilter == option.$1
                                         ? pal.secondaryContainer
                                         : pal.surface,
-                                    borderRadius: BorderRadius.circular(10),
-                                    border: Border.all(
-                                      color: _operatorFilter == option.$1
-                                          ? pal.beacon
-                                          : pal.border,
-                                      width: _operatorFilter == option.$1
-                                          ? 1.5
-                                          : 1,
-                                    ),
+                                    borderRadius: BorderRadius.circular(18),
+                                    boxShadow: _operatorFilter == option.$1
+                                        ? null
+                                        : softShadow(context),
                                   ),
-                                  child: Text(
-                                    option.$2,
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w600,
-                                      color: _operatorFilter == option.$1
-                                          ? pal.beacon
-                                          : pal.text,
-                                    ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      if (_operatorFilter == option.$1) ...[
+                                        Icon(PhosphorIconsBold.check,
+                                            size: 14,
+                                            color: pal.onSecondaryContainer),
+                                        const SizedBox(width: 5),
+                                      ],
+                                      Text(
+                                        option.$2,
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w600,
+                                          color: _operatorFilter == option.$1
+                                              ? pal.onSecondaryContainer
+                                              : pal.text,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ),

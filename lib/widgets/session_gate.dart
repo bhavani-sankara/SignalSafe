@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/session.dart';
-import '../theme/app_theme.dart';
+import 'skeleton.dart';
 
 class SessionGate extends ConsumerWidget {
   const SessionGate({super.key, required this.builder});
@@ -13,11 +13,9 @@ class SessionGate extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final session = ref.watch(sessionProvider);
     if (session == null) {
-      return Scaffold(
-        body: Center(
-          child: CircularProgressIndicator(color: context.palette.beacon),
-        ),
-      );
+      // Shimmering placeholders instead of a spinner, so nothing jumps
+      // when the data arrives.
+      return const Scaffold(body: SafeArea(child: ListSkeleton()));
     }
     return builder(context, session);
   }

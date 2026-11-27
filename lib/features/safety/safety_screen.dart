@@ -480,19 +480,18 @@ class SafetyScreen extends ConsumerWidget {
     final bg = isHigh ? pal.errorContainer : pal.warningContainer;
     final fg = isHigh ? pal.onErrorContainer : pal.onWarningContainer;
 
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    // Tinted card instead of hard borders: soft red for high risk, soft
+    // peach for caution.
     return Container(
       decoration: BoxDecoration(
-        color: pal.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border(
-          left: BorderSide(
-            color: isHigh ? pal.sos : pal.moderate,
-            width: 4,
-          ),
-          top: BorderSide(color: pal.border),
-          right: BorderSide(color: pal.border),
-          bottom: BorderSide(color: pal.border),
-        ),
+        color: dark
+            ? Color.alphaBlend(
+                (isHigh ? pal.sos : pal.moderate).withValues(alpha: 0.12),
+                pal.surface,
+              )
+            : (isHigh ? const Color(0xFFFDEEEE) : const Color(0xFFFFF3E6)),
+        borderRadius: BorderRadius.circular(20),
       ),
       child: Padding(
         padding: const EdgeInsets.all(14),
@@ -849,7 +848,7 @@ class _SosCard extends StatelessWidget {
                     color: pal.sos.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(16),
                   ),
-                  child: Icon(PhosphorIconsFill.siren,
+                  child: Icon(PhosphorIconsFill.shieldWarning,
                       color: pal.sos, size: 26),
                 ),
                 const SizedBox(width: 14),
@@ -985,12 +984,13 @@ class _HoldSosButtonState extends State<_HoldSosButton>
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Icon(PhosphorIconsFill.siren,
-                        color: Colors.white, size: 20),
+                        color: Theme.of(context).colorScheme.onError,
+                        size: 20),
                     const SizedBox(width: 10),
                     Text(
-                      'Hold for SOS options',
+                      'Press and hold for SOS options',
                       style: TextStyle(
-                        color: Colors.white,
+                        color: Theme.of(context).colorScheme.onError,
                         fontWeight: FontWeight.w700,
                         fontSize: 15,
                       ),

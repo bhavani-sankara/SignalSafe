@@ -232,14 +232,15 @@ class _ContinueCard extends StatelessWidget {
             height: 6,
           ),
           const SizedBox(height: 14),
-          Row(
+          Wrap(
+            spacing: 8,
+            runSpacing: 4,
             children: [
               FilledButton.icon(
                 onPressed: onDirections,
                 icon: const Icon(PhosphorIconsFill.arrowBendUpRight, size: 18),
                 label: const Text('Directions'),
               ),
-              const SizedBox(width: 8),
               TextButton(onPressed: onDetails, child: const Text('Trip details')),
             ],
           ),

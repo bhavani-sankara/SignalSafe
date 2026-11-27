@@ -511,13 +511,14 @@ class _MapScreenState extends ConsumerState<MapScreen>
       markers.add(
         Marker(
           point: pointAlong(r.points, anchors[i % anchors.length]),
-          width: 140,
+          width: 170,
           height: 40,
           child: Opacity(
             opacity: p,
             child: Transform.scale(
               scale: 0.82 + 0.18 * p,
-              child: Center(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
                 child: RouteBubble(
                   duration: formatDuration(r.durationMin),
                   score: networkScore(r, op),
@@ -555,7 +556,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
             child: Semantics(
               label: '${seg.min} min ${none ? 'no-signal' : 'weak-signal'} section',
               excludeSemantics: true,
-              child: Align(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
                 alignment: Alignment.centerLeft,
                 child: Container(
                   padding: const EdgeInsets.symmetric(

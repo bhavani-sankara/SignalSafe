@@ -214,9 +214,11 @@ class AppTheme {
         scrolledUnderElevation: 0,
         centerTitle: false,
         surfaceTintColor: Colors.transparent,
-        titleTextStyle: textTheme.titleLarge?.copyWith(
+        titleTextStyle: textTheme.headlineSmall?.copyWith(
           color: pal.text,
-          fontWeight: FontWeight.w700,
+          fontWeight: FontWeight.w500,
+          fontSize: 24,
+          letterSpacing: -0.3,
         ),
       ),
       navigationBarTheme: NavigationBarThemeData(
