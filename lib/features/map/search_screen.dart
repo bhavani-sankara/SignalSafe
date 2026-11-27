@@ -221,7 +221,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             recents: recent,
           );
         });
-        context.pop();
+        context.pop(place.id);
       },
     );
   }

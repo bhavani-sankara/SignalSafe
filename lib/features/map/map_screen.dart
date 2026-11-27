@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -10,206 +12,302 @@ import '../../core/geo.dart';
 import '../../core/models.dart';
 import '../../core/session.dart';
 import '../../theme/app_theme.dart';
+import '../../theme/motion.dart';
 import '../../widgets/hud.dart';
+import '../../widgets/map_motion.dart';
 import '../../widgets/session_gate.dart';
+import '../../widgets/spring_sheet.dart';
+import '../../widgets/staged_sheet.dart';
+import 'map_sheets.dart';
+import 'map_widgets.dart';
 
-// ---------------------------------------------------------------------------
-// Snap positions (as fractions of screen height)
-// ---------------------------------------------------------------------------
-const double _kSnapCollapsed  = 0.14;  // just handle + ETA line
-const double _kSnapHalf       = 0.38;  // signal bar + action buttons visible
-const double _kSnapFull       = 0.82;  // full detail — all operators, segments
+/// Explore = looking around (search pill + chips + "around you" sheet).
+/// Directions = a route between two places is on screen.
+enum MapMode { explore, directions }
 
 class MapScreen extends ConsumerStatefulWidget {
-  const MapScreen({super.key});
+  const MapScreen({super.key, this.initialMode = MapMode.explore});
+
+  final MapMode initialMode;
 
   @override
   ConsumerState<MapScreen> createState() => _MapScreenState();
 }
 
-class _MapScreenState extends ConsumerState<MapScreen> {
-  final _map        = MapController();
-  final _sheetCtrl  = DraggableScrollableController();
+class _MapScreenState extends ConsumerState<MapScreen>
+    with TickerProviderStateMixin {
+  final _map = MapController();
+  late final _camera = MapCameraAnimator(map: _map, vsync: this);
+  final _sheet = SpringSheetController();
+  final _routeHit = LayerHitNotifier<String>(null);
+
+  /// 0 → 1 over the staged directions reveal: routes draw, then bubbles pop.
+  late final AnimationController _reveal = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1500),
+  );
+
+  late MapMode _mode = widget.initialMode;
+  bool _loadingRoutes = false;
+  Timer? _loadingTimer;
 
   String? _category;
-  bool _towers     = true;
+  bool _towers = true;
   bool _essentials = true;
   bool _blackspots = true;
-  bool _fitted     = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (_mode == MapMode.directions) _reveal.value = 1;
+  }
 
   @override
   void dispose() {
-    _sheetCtrl.dispose();
+    _loadingTimer?.cancel();
+    _camera.dispose();
+    _reveal.dispose();
+    _sheet.dispose();
+    _routeHit.dispose();
     super.dispose();
   }
 
-  void _snapTo(double size) {
-    _sheetCtrl.animateTo(
-      size,
-      duration: const Duration(milliseconds: 320),
-      curve: Curves.easeOutCubic,
+  // ── Mode changes (the staged reveal) ─────────────────────────────────────
+
+  /// Directions: the sheet swaps to shimmering placeholders, the top pill
+  /// becomes the from/to card, the camera glides out to fit the route, the
+  /// routes draw themselves, and the time/signal bubbles pop in last.
+  void _enterDirections(Session session) {
+    final reduced = Motion.reduced(context);
+    setState(() {
+      _mode = MapMode.directions;
+      _loadingRoutes = !reduced;
+      _category = null;
+    });
+    _sheet.snapTo(SheetDetent.half);
+    _loadingTimer?.cancel();
+    _loadingTimer = Timer(Motion.skeletonHold, () {
+      if (mounted) setState(() => _loadingRoutes = false);
+    });
+    if (reduced) {
+      _reveal.value = 1;
+    } else {
+      _reveal.forward(from: 0);
+    }
+    _fitRoutes(session);
+  }
+
+  void _exitDirections(Session session) {
+    _loadingTimer?.cancel();
+    setState(() {
+      _mode = MapMode.explore;
+      _loadingRoutes = false;
+    });
+    _reveal.value = 0;
+    _sheet.snapTo(SheetDetent.half);
+    _camera.moveTo(
+      session.here,
+      11.5,
+      duration: Motion.of(context, Motion.recenter),
     );
   }
+
+  void _fitRoutes(Session session) {
+    final h = MediaQuery.sizeOf(context).height;
+    final all = [for (final r in session.catalog.routes) ...r.points];
+    _camera.fitBounds(
+      LatLngBounds.fromPoints(all),
+      padding: EdgeInsets.fromLTRB(40, 170, 56, h * 0.46 + 24),
+      duration: Motion.of(context, Motion.camera),
+    );
+  }
+
+  void _selectRoute(String id) {
+    if (id == ref.read(sessionProvider)?.selectedRouteId) return;
+    ref
+        .read(sessionProvider.notifier)
+        .update((s) => s.copyWith(selectedRouteId: id));
+  }
+
+  // ── Build ─────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
     return SessionGate(
       builder: (context, session) {
-        if (!_fitted) {
-          _fitted = true;
-          WidgetsBinding.instance
-              .addPostFrameCallback((_) => _fit(session));
-        }
-        final pal = context.palette;
-
+        final directions = _mode == MapMode.directions;
         return Scaffold(
+          resizeToAvoidBottomInset: false,
           body: Stack(
             children: [
-              // ── Full-bleed map ──────────────────────────────────────
-              Positioned.fill(
-                child: FlutterMap(
-                  mapController: _map,
-                  options: MapOptions(
-                    initialCenter: session.here,
-                    initialZoom: 11,
-                    onLongPress: (_, pt) =>
-                        _droppedPin(context, session, pt),
-                  ),
-                  children: [
-                    TileLayer(
-                      urlTemplate:
-                          'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                      userAgentPackageName: 'com.signalsafe.app',
-                    ),
-                    if (session.overlayOn && _blackspots)
-                      PolygonLayer(
-                        polygons: [
-                          for (final spot in session.catalog.blackspots)
-                            Polygon(
-                              points: spot.points,
-                              color: pal.moderate.withValues(alpha: 0.14),
-                              borderColor:
-                                  pal.moderate.withValues(alpha: 0.5),
-                              borderStrokeWidth: 1.5,
-                            ),
-                        ],
-                      ),
-                    if (session.overlayOn)
-                      PolylineLayer(polylines: _ribbons(session, pal)),
-                    MarkerLayer(
-                        markers: _markers(context, session, pal)),
-                    const RichAttributionWidget(
-                      attributions: [
-                        TextSourceAttribution('OpenStreetMap')
-                      ],
-                    ),
-                  ],
+              Positioned.fill(child: _buildMap(context, session)),
+
+              // Map buttons ride on top of the sheet and fade as it rises.
+              _FloatingControls(
+                sheet: _sheet,
+                directions: directions,
+                onLayers: () => _layers(context),
+                onLocate: () => _camera.moveTo(
+                  session.here,
+                  13,
+                  duration: Motion.of(context, Motion.recenter),
                 ),
+                onDirections: () => _enterDirections(session),
               ),
 
-              // ── Search bar + chips ──────────────────────────────────
-              SafeArea(
-                child: Align(
-                  alignment: Alignment.topLeft,
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 680),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          _searchBar(context, session),
-                          const SizedBox(height: 8),
-                          _chips(context),
-                        ],
-                      ),
+              SpringSheet(
+                controller: _sheet,
+                peekHeight: directions ? 96 : 72,
+                halfFraction: 0.42,
+                header: AnimatedBuilder(
+                  animation: _sheet,
+                  builder: (context, _) => AnimatedSwitcher(
+                    duration: Motion.of(context, Motion.standard),
+                    switchInCurve: Motion.enter,
+                    switchOutCurve: Motion.exit,
+                    layoutBuilder: (current, previous) => Stack(
+                      alignment: Alignment.topCenter,
+                      children: [...previous, ?current],
                     ),
+                    child: directions
+                        ? DirectionsHeader(
+                            key: const ValueKey('dir'),
+                            session: session,
+                            loading: _loadingRoutes,
+                            expansion: _sheet.expansion,
+                            onCollapse: () => _sheet.snapTo(SheetDetent.half),
+                            onOperator: (op) => ref
+                                .read(sessionProvider.notifier)
+                                .update((s) => s.copyWith(operatorFilter: op)),
+                          )
+                        : ExploreHeader(
+                            key: const ValueKey('explore'),
+                            session: session,
+                            expansion: _sheet.expansion,
+                            onCollapse: () => _sheet.snapTo(SheetDetent.half),
+                          ),
                   ),
                 ),
-              )
-                  .animate()
-                  .fadeIn(duration: 350.ms)
-                  .slideY(
-                    begin: -0.08,
-                    end: 0,
-                    duration: 400.ms,
-                    curve: Curves.easeOut,
-                  ),
-
-              // ── Right-rail controls ─────────────────────────────────
-              Positioned(
-                right: 12,
-                top: 200,
-                child: Column(
-                  children: [
-                    RoundIconButton(
-                      icon: PhosphorIconsRegular.stack,
-                      tooltip: 'Map layers',
-                      onTap: () => _layers(context, session),
-                    ),
-                    const SizedBox(height: 8),
-                    RoundIconButton(
-                      icon: PhosphorIconsRegular.wifiHigh,
-                      tooltip: session.overlayOn
-                          ? 'Hide signal overlay'
-                          : 'Show signal overlay',
-                      selected: session.overlayOn,
-                      onTap: () => ref
-                          .read(sessionProvider.notifier)
-                          .update((s) =>
-                              s.copyWith(overlayOn: !s.overlayOn)),
-                    ),
-                    const SizedBox(height: 8),
-                    RoundIconButton(
-                      icon: PhosphorIconsRegular.crosshair,
-                      tooltip: 'My location',
-                      onTap: () => _map.move(session.here, 13),
-                    ),
-                    const SizedBox(height: 8),
-                    RoundIconButton(
-                      icon: PhosphorIconsRegular.broadcast,
-                      tooltip: 'Network operator',
-                      onTap: () => _operators(context, session),
-                    ),
-                  ],
-                )
-                    .animate()
-                    .fadeIn(duration: 400.ms, delay: 150.ms)
-                    .slideX(
-                      begin: 0.1,
-                      end: 0,
-                      duration: 400.ms,
-                      curve: Curves.easeOut,
-                    ),
-              ),
-
-              // ── Draggable journey sheet ─────────────────────────────
-              _JourneySheet(
-                session: session,
-                sheetCtrl: _sheetCtrl,
-                onSnapTo: _snapTo,
-                onStart: () {
-                  ref.read(sessionProvider.notifier).update(
-                        (s) => s.copyWith(
-                          selectedRouteId: session.route.id,
-                          navProgress: 0.08,
+                builder: (context, scroll, physics) => AnimatedSwitcher(
+                  duration: Motion.of(context, Motion.standard),
+                  switchInCurve: Motion.enter,
+                  switchOutCurve: Motion.exit,
+                  child: directions
+                      ? DirectionsBody(
+                          key: const ValueKey('dir'),
+                          session: session,
+                          scroll: scroll,
+                          physics: physics,
+                          loading: _loadingRoutes,
+                          onStart: () => _start(context, session),
+                          onOffline: () => _offline(context),
+                          onReport: () => context.push('/report'),
+                          onCompare: () => context.push('/compare'),
+                          onShare: () => _toast(
+                            context,
+                            'Route link copied (demo)',
+                            PhosphorIconsRegular.shareNetwork,
+                          ),
+                          onSelectRoute: _selectRoute,
+                        )
+                      : ExploreBody(
+                          key: const ValueKey('explore'),
+                          session: session,
+                          scroll: scroll,
+                          physics: physics,
+                          onDirections: () => _enterDirections(session),
+                          onTripDetails: () => context.push('/trip/t1'),
+                          onPlace: (p) => _placeSheet(context, p),
+                          onTower: (t) => _towerSheet(context, t),
+                          onReport: (r) => _reportSheet(context, r),
+                          onSeeCommunity: () => context.go('/community'),
                         ),
-                      );
-                  context.push('/navigate');
-                },
-                onCompare: () => context.push('/compare'),
-                onReport: () => context.push('/report'),
-                onLayers: () => _layers(context, session),
-                onOperator: () => _operators(context, session),
-              )
-                  .animate()
-                  .fadeIn(duration: 400.ms, delay: 100.ms)
-                  .slideY(
-                    begin: 0.15,
-                    end: 0,
-                    duration: 450.ms,
-                    curve: Curves.easeOut,
-                  ),
+                ),
+              ),
+
+              // Top chrome: search pill ↔ from/to card. Slides up and fades
+              // out as the sheet goes full, so the sheet header becomes the
+              // top bar.
+              _TopChrome(
+                sheet: _sheet,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    AnimatedSize(
+                      duration: Motion.of(context, Motion.standard),
+                      curve: Motion.enter,
+                      alignment: Alignment.topCenter,
+                      child: AnimatedSwitcher(
+                        duration: Motion.of(context, Motion.standard),
+                        switchInCurve: Motion.enter,
+                        switchOutCurve: Motion.exit,
+                        transitionBuilder: (child, a) => FadeTransition(
+                          opacity: a,
+                          child: ScaleTransition(
+                            scale: Tween(begin: 0.96, end: 1.0).animate(a),
+                            alignment: Alignment.topCenter,
+                            child: child,
+                          ),
+                        ),
+                        child: directions
+                            ? Padding(
+                                key: const ValueKey('fromto'),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                ),
+                                child: FromToCard(
+                                  origin: session.origin.name,
+                                  destination: session.destination.name,
+                                  onBack: () => _exitDirections(session),
+                                  onOrigin: () =>
+                                      _search(context, session, 'origin'),
+                                  onDestination: () =>
+                                      _search(context, session, 'destination'),
+                                  onSwap: () => ref
+                                      .read(sessionProvider.notifier)
+                                      .update(
+                                        (s) => s.copyWith(
+                                          originId: s.destinationId,
+                                          destinationId: s.originId,
+                                        ),
+                                      ),
+                                ),
+                              )
+                            : Column(
+                                key: const ValueKey('search'),
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                    ),
+                                    child: SearchPill(
+                                      initial: session.userName.characters
+                                          .first,
+                                      onSearch: () => _search(
+                                        context,
+                                        session,
+                                        'destination',
+                                      ),
+                                      onProfile: () =>
+                                          context.go('/profile'),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  CategoryChips(
+                                    selected: _category,
+                                    onSelected: (c) => setState(() {
+                                      _category = c;
+                                      _essentials = true;
+                                    }),
+                                  ),
+                                ],
+                              ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ],
           ),
         );
@@ -217,232 +315,437 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     );
   }
 
-  // ── Route ribbons ──────────────────────────────────────────────────
+  // ── Map ───────────────────────────────────────────────────────────────────
 
-  List<Polyline> _ribbons(Session session, SignalPalette pal) {
-    final route  = session.route;
-    final slices = splitByWeight(
-      route.points,
-      route.segments.map((s) => s.km).toList(),
-    );
-    return [
-      for (final other in session.catalog.routes)
-        if (other.id != route.id)
-          Polyline(
-            points: other.points,
-            color: pal.muted.withValues(alpha: 0.4),
-            strokeWidth: 3.5,
+  Widget _buildMap(BuildContext context, Session session) {
+    final pal = context.palette;
+    final directions = _mode == MapMode.directions;
+    return FlutterMap(
+      mapController: _map,
+      options: MapOptions(
+        initialCenter: session.here,
+        initialZoom: directions ? 8.4 : 11.5,
+        onMapReady: () {
+          if (directions) _fitRoutes(session);
+        },
+        onPositionChanged: (_, hasGesture) {
+          if (hasGesture && _camera.isAnimating) _camera.stop();
+        },
+        onLongPress: (_, pt) => _droppedPin(context, session, pt),
+      ),
+      children: [
+        TileLayer(
+          urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+          userAgentPackageName: 'com.signalsafe.app',
+          tileBuilder: Theme.of(context).brightness == Brightness.dark
+              ? darkModeTileBuilder
+              : _calmTileBuilder,
+        ),
+        if (session.overlayOn && _blackspots)
+          PolygonLayer(
+            polygons: [
+              for (final spot in session.catalog.blackspots)
+                Polygon(
+                  points: spot.points,
+                  color: pal.moderate.withValues(alpha: 0.12),
+                  borderColor: pal.moderate.withValues(alpha: 0.45),
+                  borderStrokeWidth: 1.2,
+                ),
+            ],
           ),
-      for (var i = 0; i < slices.length; i++) ...[
-        Polyline(points: slices[i], color: Colors.white, strokeWidth: 12),
-        Polyline(
-          points: slices[i],
-          color: _isLowSignal(
-                  route.segments[i].levelFor(session.operatorFilter))
-              ? pal.moderate
-              : pal.route,
-          strokeWidth: 7,
-          pattern: _isLowSignal(
-                  route.segments[i].levelFor(session.operatorFilter))
-              ? const StrokePattern.dotted()
-              : const StrokePattern.solid(),
+        if (directions)
+          AnimatedBuilder(
+            animation: _reveal,
+            builder: (context, _) => _routeLayer(context, session, pal),
+          ),
+        MarkerLayer(markers: _poiMarkers(context, session, pal)),
+        if (directions)
+          AnimatedBuilder(
+            animation: _reveal,
+            builder: (context, _) =>
+                MarkerLayer(markers: _routeMarkers(context, session, pal)),
+          ),
+        MarkerLayer(
+          markers: [
+            Marker(
+              point: session.here,
+              width: 56,
+              height: 56,
+              child: Semantics(
+                label: 'Your location',
+                child: const _LocationPuck(),
+              ),
+            ),
+          ],
+        ),
+        const RichAttributionWidget(
+          alignment: AttributionAlignment.bottomLeft,
+          attributions: [TextSourceAttribution('OpenStreetMap contributors')],
         ),
       ],
-    ];
+    );
   }
 
-  bool _isLowSignal(String level) => level == 'none' || level == 'weak';
+  /// Slightly lighter, lower-contrast OSM tiles so the route and pins are
+  /// what stands out (the "calm pastel map" look).
+  static Widget _calmTileBuilder(
+    BuildContext context,
+    Widget tile,
+    TileImage image,
+  ) {
+    return ColorFiltered(
+      colorFilter: const ColorFilter.matrix(<double>[
+        0.86, 0.06, 0.06, 0, 18, //
+        0.05, 0.88, 0.05, 0, 18, //
+        0.05, 0.06, 0.86, 0, 20, //
+        0, 0, 0, 1, 0,
+      ]),
+      child: tile,
+    );
+  }
 
-  // ── Markers ────────────────────────────────────────────────────────
+  double get _drawT => const Interval(
+    0.25,
+    0.62,
+    curve: Curves.easeInOut,
+  ).transform(_reveal.value);
 
-  List<Marker> _markers(
-      BuildContext context, Session session, SignalPalette pal) {
-    final route  = session.route;
+  Widget _routeLayer(BuildContext context, Session session, SignalPalette pal) {
+    final t = _drawT;
+    if (t <= 0) return const SizedBox.shrink();
+    final route = session.route;
+    final op = session.operatorFilter;
     final slices = splitByWeight(
-      route.points,
+      trimPolyline(route.points, 1), // full slices, trimmed below
       route.segments.map((s) => s.km).toList(),
     );
-    final markers = <Marker>[
-      _pin(session.here, pal.beacon, PhosphorIconsFill.navigationArrow,
-          semanticLabel:
-              'Current location, ${session.origin.name}',
-          onTap: () => _placeSheet(context, session.origin)),
-      _destinationPin(context, session, pal),
-    ];
+    final alternates = session.catalog.routes.where((r) => r.id != route.id);
 
-    final firstGap = route.segments.indexWhere(
-      (s) => _isLowSignal(s.levelFor(session.operatorFilter)),
+    // Selected route drawn progressively: slices are trimmed so the whole
+    // line grows from start to end.
+    final totalSlices = slices.length;
+    final selected = <Polyline<String>>[];
+    for (var i = 0; i < totalSlices; i++) {
+      final sliceStart = i / totalSlices;
+      final sliceEnd = (i + 1) / totalSlices;
+      if (t <= sliceStart) break;
+      final local = ((t - sliceStart) / (sliceEnd - sliceStart)).clamp(0.0, 1.0);
+      final pts = trimPolyline(slices[i], local);
+      final low = _isLow(route.segments[i].levelFor(op));
+      selected
+        ..add(Polyline(points: pts, color: Colors.white, strokeWidth: 12))
+        ..add(
+          Polyline(
+            points: pts,
+            color: low ? pal.moderate : pal.route,
+            strokeWidth: 7,
+            pattern: low
+                ? const StrokePattern.dotted(spacingFactor: 1.6)
+                : const StrokePattern.solid(),
+          ),
+        );
+    }
+
+    return MouseRegion(
+      hitTestBehavior: HitTestBehavior.deferToChild,
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: () {
+          final hit = _routeHit.value?.hitValues;
+          if (hit != null && hit.isNotEmpty) _selectRoute(hit.first);
+        },
+        child: PolylineLayer<String>(
+          hitNotifier: _routeHit,
+          minimumHitbox: 18,
+          polylines: [
+            for (final r in alternates) ...[
+              Polyline(
+                points: trimPolyline(r.points, t),
+                color: Colors.white,
+                strokeWidth: 9,
+                hitValue: r.id,
+              ),
+              Polyline(
+                points: trimPolyline(r.points, t),
+                color: Color.alphaBlend(
+                  pal.route.withValues(alpha: 0.4),
+                  pal.surface,
+                ),
+                strokeWidth: 5.5,
+                hitValue: r.id,
+              ),
+            ],
+            ...selected,
+          ],
+        ),
+      ),
     );
-    if (firstGap >= 0 && slices[firstGap].isNotEmpty) {
-      final seg      = route.segments[firstGap];
-      final noSignal = seg.levelFor(session.operatorFilter) == 'none';
-      markers.add(Marker(
-        point: slices[firstGap][slices[firstGap].length ~/ 2],
-        width: 160,
-        height: 42,
-        alignment: Alignment.centerLeft,
-        child: Semantics(
-          label:
-              '${seg.min} min ${noSignal ? 'no-signal' : 'weak-signal'} section',
-          child: Material(
-            color: pal.warningContainer,
-            elevation: 3,
-            shadowColor: Colors.black.withValues(alpha: 0.2),
-            borderRadius: BorderRadius.circular(10),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 10, vertical: 8),
-              child: Row(
-                children: [
-                  Icon(PhosphorIconsRegular.wifiSlash,
-                      size: 15, color: pal.onWarningContainer),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      '${seg.min} min '
-                      '${noSignal ? 'no signal' : 'weak'}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        color: pal.onWarningContainer,
-                      ),
-                    ),
-                  ),
-                ],
+  }
+
+  List<Marker> _routeMarkers(
+    BuildContext context,
+    Session session,
+    SignalPalette pal,
+  ) {
+    final markers = <Marker>[];
+    final route = session.route;
+    final op = session.operatorFilter;
+
+    if (_drawT >= 1) {
+      markers.add(_destinationPin(context, session, pal));
+    }
+
+    // Time/signal bubbles pop in last, one after another.
+    final routes = session.catalog.routes;
+    const anchors = [0.42, 0.6, 0.3];
+    for (var i = 0; i < routes.length; i++) {
+      final r = routes[i];
+      final start = (900 + 90 * i) / 1500;
+      final p = Interval(
+        start.clamp(0.0, 1.0),
+        (start + 0.2).clamp(0.0, 1.0),
+        curve: Motion.enter,
+      ).transform(_reveal.value);
+      if (p <= 0) continue;
+      final best = r.id == session.rankedRoutes().first.id;
+      markers.add(
+        Marker(
+          point: pointAlong(r.points, anchors[i % anchors.length]),
+          width: 140,
+          height: 40,
+          child: Opacity(
+            opacity: p,
+            child: Transform.scale(
+              scale: 0.82 + 0.18 * p,
+              child: Center(
+                child: RouteBubble(
+                  duration: formatDuration(r.durationMin),
+                  score: networkScore(r, op),
+                  selected: r.id == route.id,
+                  best: best,
+                  onTap: () => _selectRoute(r.id),
+                ),
               ),
             ),
           ),
         ),
-      ));
+      );
     }
+
+    // Callout where the selected route first loses signal.
+    final slices = splitByWeight(
+      route.points,
+      route.segments.map((s) => s.km).toList(),
+    );
+    final gap = route.segments.indexWhere((s) => _isLow(s.levelFor(op)));
+    final cp = const Interval(0.85, 1, curve: Motion.enter).transform(
+      _reveal.value,
+    );
+    if (gap >= 0 && slices[gap].isNotEmpty && cp > 0) {
+      final seg = route.segments[gap];
+      final none = seg.levelFor(op) == 'none';
+      markers.add(
+        Marker(
+          point: slices[gap][slices[gap].length ~/ 2],
+          width: 150,
+          height: 34,
+          alignment: Alignment.centerLeft,
+          child: Opacity(
+            opacity: cp,
+            child: Semantics(
+              label: '${seg.min} min ${none ? 'no-signal' : 'weak-signal'} section',
+              excludeSemantics: true,
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 9,
+                    vertical: 5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: pal.warningContainer,
+                    borderRadius: BorderRadius.circular(10),
+                    boxShadow: softShadow(context),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        PhosphorIconsRegular.wifiSlash,
+                        size: 13,
+                        color: pal.onWarningContainer,
+                      ),
+                      const SizedBox(width: 5),
+                      Text(
+                        '${seg.min} min ${none ? 'no signal' : 'weak'}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: pal.onWarningContainer,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+    return markers;
+  }
+
+  bool _isLow(String level) => level == 'none' || level == 'weak';
+
+  List<Marker> _poiMarkers(
+    BuildContext context,
+    Session session,
+    SignalPalette pal,
+  ) {
+    final markers = <Marker>[];
+    final directions = _mode == MapMode.directions;
 
     if (_towers) {
       for (final tower in session.catalog.towers) {
         if (session.operatorFilter != 'all' &&
-            tower.operator != session.operatorFilter) { continue; }
-        markers.add(_pin(
-          tower.point,
-          _opColor(tower.operator),
-          PhosphorIconsFill.broadcast,
-          semanticLabel:
-              '${operatorLabel(tower.operator)} tower, ${tower.name}',
-          onTap: () => _towerSheet(context, tower),
-        ));
+            tower.operator != session.operatorFilter) {
+          continue;
+        }
+        markers.add(
+          _pin(
+            tower.point,
+            operatorColor(tower.operator),
+            PhosphorIconsFill.broadcast,
+            semanticLabel:
+                '${operatorLabel(tower.operator)} tower, ${tower.name}',
+            onTap: () => _towerSheet(context, tower),
+          ),
+        );
       }
     }
 
     if (_essentials) {
       for (final place in session.catalog.places) {
         if (place.id == session.originId ||
-            place.id == session.destinationId) { continue; }
-        if (_category != null && place.category != _category) { continue; }
+            (directions && place.id == session.destinationId)) {
+          continue;
+        }
+        if (_category != null && place.category != _category) continue;
         if (_category == null &&
-            place.category != 'recovery' &&
-            place.category != 'hospital' &&
-            place.category != 'police' &&
-            place.category != 'fuel') { continue; }
-        markers.add(_pin(
-          place.point,
-          place.category == 'hospital'
-              ? pal.sos
-              : _categoryColor(place.category, pal),
-          place.category == 'hospital'
-              ? PhosphorIconsRegular.firstAid
-              : categoryIcon(place.category),
-          semanticLabel: place.name,
-          onTap: () => _placeSheet(context, place),
-          iconColor: place.category == 'hospital'
-              ? Colors.white
-              : pal.onPrimaryContainer,
-        ));
+            !const {
+              'recovery',
+              'hospital',
+              'police',
+              'fuel',
+            }.contains(place.category)) {
+          continue;
+        }
+        markers.add(
+          _pin(
+            place.point,
+            categoryAccent(place.category, pal),
+            categoryIcon(place.category),
+            semanticLabel: place.name,
+            onTap: () => _placeSheet(context, place),
+          ),
+        );
       }
     }
 
     if (session.communityLayerOn) {
       for (final report in session.reports) {
-        if (session.flaggedIds.contains(report.id)) { continue; }
+        if (session.flaggedIds.contains(report.id)) continue;
         if (session.operatorFilter != 'all' &&
-            report.operator != session.operatorFilter) { continue; }
-        markers.add(Marker(
-          point: report.point,
-          width: 48,
-          height: 48,
-          child: Semantics(
-            button: true,
-            label: '${_levelWord(report.level)} signal report, '
-                '${operatorLabel(report.operator)}, '
-                '${agoLabel(report.minutesAgo)}',
-            onTap: () => _reportSheet(context, report),
-            child: ExcludeSemantics(
-              child: GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: () => _reportSheet(context, report),
-                child: Center(
-                  child: Container(
-                    width: 20,
-                    height: 20,
-                    decoration: BoxDecoration(
-                      color: context.palette.level(report.level),
-                      shape: BoxShape.circle,
-                      border:
-                          Border.all(color: Colors.white, width: 2.5),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.2),
-                          blurRadius: 4,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
+            report.operator != session.operatorFilter) {
+          continue;
+        }
+        markers.add(
+          Marker(
+            point: report.point,
+            width: 48,
+            height: 48,
+            child: Semantics(
+              button: true,
+              label:
+                  '${_levelWord(report.level)} signal report, '
+                  '${operatorLabel(report.operator)}, '
+                  '${agoLabel(report.minutesAgo)}',
+              onTap: () => _reportSheet(context, report),
+              child: ExcludeSemantics(
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => _reportSheet(context, report),
+                  child: Center(
+                    child: Container(
+                      width: 16,
+                      height: 16,
+                      decoration: BoxDecoration(
+                        color: pal.level(report.level),
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 2.5),
+                        boxShadow: softShadow(context),
+                      ),
                     ),
                   ),
                 ),
               ),
             ),
           ),
-        ));
+        );
       }
     }
-
     return markers;
   }
 
   String _levelWord(String level) => switch (level) {
-        'good'     => 'Good',
-        'moderate' => 'Moderate',
-        'weak'     => 'Weak',
-        _          => 'No',
-      };
+    'good' => 'Good',
+    'moderate' => 'Moderate',
+    'weak' => 'Weak',
+    _ => 'No',
+  };
 
   Marker _destinationPin(
-      BuildContext context, Session session, SignalPalette pal) {
+    BuildContext context,
+    Session session,
+    SignalPalette pal,
+  ) {
     return Marker(
       point: session.destination.point,
       width: 48,
       height: 56,
+      alignment: Alignment.topCenter,
       child: Semantics(
         button: true,
         label: 'Destination, ${session.destination.name}',
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,
           onTap: () => _placeSheet(context, session.destination),
-          child: Center(
-            child: Icon(PhosphorIconsFill.mapPin,
-                size: 40, color: pal.destination),
+          child: Align(
+            alignment: Alignment.bottomCenter,
+            child: Icon(
+              PhosphorIconsFill.mapPin,
+              size: 40,
+              color: pal.destination,
+            ),
           ),
         ),
+      ).animate().scale(
+        begin: const Offset(0.4, 0.4),
+        alignment: Alignment.bottomCenter,
+        duration: 280.ms,
+        curve: Motion.enter,
       ),
     );
   }
 
+  /// Small glyph pin with a 48dp tap target.
   Marker _pin(
     LatLng point,
     Color color,
     IconData icon, {
     required String semanticLabel,
     VoidCallback? onTap,
-    Color? iconColor,
   }) {
     return Marker(
       point: point,
@@ -456,22 +759,15 @@ class _MapScreenState extends ConsumerState<MapScreen> {
           onTap: onTap,
           child: Center(
             child: Container(
-              width: 32,
-              height: 32,
+              width: 26,
+              height: 26,
               decoration: BoxDecoration(
                 color: color,
                 shape: BoxShape.circle,
-                border: Border.all(color: Colors.white, width: 2.5),
-                boxShadow: [
-                  BoxShadow(
-                    color: color.withValues(alpha: 0.4),
-                    blurRadius: 8,
-                    offset: const Offset(0, 3),
-                  ),
-                ],
+                border: Border.all(color: Colors.white, width: 2),
+                boxShadow: softShadow(context),
               ),
-              child:
-                  Icon(icon, size: 15, color: iconColor ?? Colors.white),
+              child: Icon(icon, size: 13, color: Colors.white),
             ),
           ),
         ),
@@ -479,198 +775,171 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     );
   }
 
-  // ── Search bar ─────────────────────────────────────────────────────
+  // ── Actions ───────────────────────────────────────────────────────────────
 
-  Widget _searchBar(BuildContext context, Session session) {
-    final pal  = context.palette;
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    return Material(
-      color: Colors.transparent,
-      child: Container(
-        decoration: BoxDecoration(
-          color: pal.surface,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: pal.border),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: dark ? 0.35 : 0.1),
-              blurRadius: 16,
-              offset: const Offset(0, 3),
-            ),
-          ],
-        ),
-        child: Padding(
-          // ← tighter vertical padding = shorter search bar
-          padding: const EdgeInsets.fromLTRB(14, 2, 4, 2),
-          child: Row(
+  Future<void> _search(
+    BuildContext context,
+    Session session,
+    String mode,
+  ) async {
+    final picked = await context.push<String>('/search?mode=$mode');
+    if (!mounted || picked == null) return;
+    final s = ref.read(sessionProvider);
+    if (s == null) return;
+    // Picking a place (or changing an end of the trip) runs the staged
+    // directions reveal for the new trip.
+    _enterDirections(s);
+  }
+
+  void _start(BuildContext context, Session session) {
+    ref
+        .read(sessionProvider.notifier)
+        .update(
+          (s) => s.copyWith(selectedRouteId: session.route.id, navProgress: 0.08),
+        );
+    context.push('/navigate');
+  }
+
+  void _offline(BuildContext context) {
+    ref.read(sessionProvider.notifier).update((s) {
+      final trips = [
+        for (final t in s.trips)
+          t.routeId == s.selectedRouteId && t.kind == 'saved'
+              ? t.copyWith(offlinePrepared: true)
+              : t,
+      ];
+      return s.copyWith(trips: trips);
+    });
+    _toast(
+      context,
+      'Offline plan saved (demo). Map tiles still need a connection.',
+      PhosphorIconsRegular.downloadSimple,
+    );
+  }
+
+  void _toast(BuildContext context, String text, IconData icon) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          behavior: SnackBarBehavior.floating,
+          shape: const StadiumBorder(),
+          margin: const EdgeInsets.fromLTRB(16, 0, 16, 110),
+          content: Row(
             children: [
-              Expanded(
-                child: Stack(
+              Icon(icon, color: Colors.white, size: 18),
+              const SizedBox(width: 10),
+              Expanded(child: Text(text)),
+            ],
+          ),
+        ),
+      );
+  }
+
+  // ── Modal sheets: scrim first, then the sheet ────────────────────────────
+
+  Future<void> _layers(BuildContext context) {
+    return showStagedSheet<void>(
+      context: context,
+      title: 'Map details',
+      builder: (context) => StatefulBuilder(
+        builder: (context, setSheet) {
+          final session = ref.watch(sessionProvider);
+          if (session == null) return const SizedBox.shrink();
+          void toggle(void Function() change) {
+            change();
+            setSheet(() {});
+            setState(() {});
+          }
+
+          final tiles = [
+            (
+              'Signal overlay',
+              PhosphorIconsRegular.wifiHigh,
+              session.overlayOn,
+              () => ref
+                  .read(sessionProvider.notifier)
+                  .update((s) => s.copyWith(overlayOn: !s.overlayOn)),
+            ),
+            (
+              'Community',
+              PhosphorIconsRegular.usersThree,
+              session.communityLayerOn,
+              () => ref
+                  .read(sessionProvider.notifier)
+                  .update(
+                    (s) => s.copyWith(communityLayerOn: !s.communityLayerOn),
+                  ),
+            ),
+            (
+              'Towers',
+              PhosphorIconsRegular.broadcast,
+              _towers,
+              () => _towers = !_towers,
+            ),
+            (
+              'Essentials',
+              PhosphorIconsRegular.firstAid,
+              _essentials,
+              () => _essentials = !_essentials,
+            ),
+            (
+              'Blackspots',
+              PhosphorIconsRegular.warning,
+              _blackspots,
+              () => _blackspots = !_blackspots,
+            ),
+          ];
+          return Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                GridView.count(
+                  crossAxisCount: 3,
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  mainAxisSpacing: 10,
+                  crossAxisSpacing: 10,
+                  childAspectRatio: 1.05,
                   children: [
-                    const Positioned(
-                      left: 10,
-                      top: 28,
-                      bottom: 28,
-                      child: CustomPaint(
-                        painter: _DottedConnectorPainter(),
-                        size: Size(2, 28),
+                    for (final t in tiles)
+                      _LayerTile(
+                        label: t.$1,
+                        icon: t.$2,
+                        on: t.$3,
+                        onTap: () => toggle(t.$4),
                       ),
-                    ),
-                    Column(
-                      children: [
-                        _routeStop(
-                          context,
-                          icon: PhosphorIconsRegular.navigationArrow,
-                          color: pal.beacon,
-                          name: session.origin.name,
-                          onTap: () =>
-                              context.push('/search?mode=origin'),
-                        ),
-                        _routeStop(
-                          context,
-                          icon: PhosphorIconsFill.mapPin,
-                          color: pal.destination,
-                          name: session.destination.name,
-                          onTap: () =>
-                              context.push('/search?mode=destination'),
-                        ),
-                      ],
-                    ),
                   ],
                 ),
-              ),
-              Container(
-                width: 1,
-                height: 32,
-                color: pal.border,
-                margin: const EdgeInsets.symmetric(horizontal: 2),
-              ),
-              IconButton(
-                tooltip: 'Swap start and destination',
-                onPressed: () =>
-                    ref.read(sessionProvider.notifier).update(
-                          (s) => s.copyWith(
-                            originId: s.destinationId,
-                            destinationId: s.originId,
-                          ),
-                        ),
-                icon: Icon(PhosphorIconsRegular.arrowsLeftRight,
-                    color: pal.muted, size: 18),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _routeStop(
-    BuildContext context, {
-    required IconData icon,
-    required Color color,
-    required String name,
-    required VoidCallback onTap,
-  }) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(10),
-        child: SizedBox(
-          // ← tighter row height
-          height: 40,
-          child: Row(
-            children: [
-              Icon(icon, size: 17, color: color),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: context.palette.text,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                  ),
+                const SizedBox(height: 18),
+                Text(
+                  'Network',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
                 ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  // ── Category chips ─────────────────────────────────────────────────
-
-  Widget _chips(BuildContext context) {
-    final pal = context.palette;
-    const items = [
-      ('hospital',  'Hospitals',   Color(0xFFE7483B)),
-      ('police',    'Police',      Color(0xFF3E7BCC)),
-      ('fuel',      'Fuel',        Color(0xFFE58A00)),
-      ('hotel',     'Hotels',      Color(0xFF9A4DCE)),
-      ('restaurant','Food',        Color(0xFFB9682B)),
-      ('atm',       'ATMs',        Color(0xFF476B9B)),
-      ('recovery',  'Recovery',    Color(0xFF16845B)),
-      ('blackspot', 'Weak signal', Color(0xFFC55D00)),
-    ];
-    return SizedBox(
-      height: 36,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: items.length,
-        separatorBuilder: (_, _) => const SizedBox(width: 6),
-        itemBuilder: (context, i) {
-          final item     = items[i];
-          final selected = _category == item.$1;
-          return GestureDetector(
-            onTap: () => setState(() {
-              _category  = selected ? null : item.$1;
-              _essentials = true;
-            }),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 180),
-              curve: Curves.easeOut,
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color:
-                    selected ? pal.secondaryContainer : pal.surface,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(
-                  color: selected ? pal.beacon : pal.border,
-                  width: selected ? 1.5 : 1,
-                ),
-                boxShadow: selected
-                    ? []
-                    : [
-                        BoxShadow(
-                          color:
-                              Colors.black.withValues(alpha: 0.08),
-                          blurRadius: 4,
-                          offset: const Offset(0, 2),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    for (final op in NetworkTabs.ops)
+                      ChoiceChip(
+                        label: Text(operatorLabel(op)),
+                        selected: session.operatorFilter == op,
+                        showCheckmark: true,
+                        shape: const StadiumBorder(),
+                        onSelected: (_) => toggle(
+                          () => ref
+                              .read(sessionProvider.notifier)
+                              .update((s) => s.copyWith(operatorFilter: op)),
                         ),
-                      ],
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(categoryIcon(item.$1),
-                      size: 13,
-                      color: selected ? pal.beacon : item.$3),
-                  const SizedBox(width: 5),
-                  Text(
-                    item.$2,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: selected ? pal.beacon : pal.text,
-                    ),
-                  ),
-                ],
-              ),
+                      ),
+                  ],
+                ),
+              ],
             ),
           );
         },
@@ -678,311 +947,198 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     );
   }
 
-  // ── Map utils ──────────────────────────────────────────────────────
-
-  void _fit(Session session) {
-    _map.fitCamera(
-      CameraFit.bounds(
-        bounds: LatLngBounds.fromPoints(session.route.points),
-        padding: const EdgeInsets.fromLTRB(36, 160, 36, 220),
+  void _placeSheet(BuildContext context, Place place) {
+    final pal = context.palette;
+    final session = ref.read(sessionProvider)!;
+    final km = distance(session.here, place.point) / 1000;
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    showStagedSheet<void>(
+      context: context,
+      title: place.name,
+      subtitle: place.subtitle,
+      leading: Container(
+        width: 48,
+        height: 48,
+        decoration: BoxDecoration(
+          color: categoryTint(place.category, dark),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Icon(
+          categoryIcon(place.category),
+          color: categoryAccent(place.category, pal),
+        ),
+      ),
+      builder: (sheetContext) => Padding(
+        padding: const EdgeInsets.fromLTRB(0, 6, 0, 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: MetaLine([
+                _categoryWord(place.category),
+                '${km.toStringAsFixed(km < 10 ? 1 : 0)} km from you',
+                'Estimated',
+              ]),
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              height: 44,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                children: [
+                  FilledButton.icon(
+                    onPressed: () {
+                      Navigator.of(sheetContext).pop();
+                      ref.read(sessionProvider.notifier).update((s) {
+                        final recent = [
+                          place.name,
+                          ...s.recents.where((r) => r != place.name),
+                        ].take(8).toList();
+                        return s.copyWith(
+                          destinationId: place.id,
+                          recents: recent,
+                        );
+                      });
+                      _enterDirections(ref.read(sessionProvider)!);
+                    },
+                    icon: const Icon(
+                      PhosphorIconsFill.arrowBendUpRight,
+                      size: 18,
+                    ),
+                    label: const Text('Directions'),
+                  ),
+                  const SizedBox(width: 8),
+                  TonalPill(
+                    icon: PhosphorIconsRegular.navigationArrow,
+                    label: 'Set as start',
+                    onTap: () {
+                      Navigator.of(sheetContext).pop();
+                      ref
+                          .read(sessionProvider.notifier)
+                          .update((s) => s.copyWith(originId: place.id));
+                    },
+                  ),
+                  const SizedBox(width: 8),
+                  TonalPill(
+                    icon: PhosphorIconsRegular.crosshair,
+                    label: 'Show on map',
+                    onTap: () {
+                      Navigator.of(sheetContext).pop();
+                      _camera.moveTo(place.point, 13.5);
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  // ── Bottom sheets (layers / operators / place / tower / report) ────
-
-  Future<void> _layers(BuildContext context, Session session) async {
-    await showModalBottomSheet<void>(
-      context: context,
-      showDragHandle: true,
-      builder: (context) {
-        return StatefulBuilder(builder: (context, setSheet) {
-          Widget tile(
-              String title, bool value, ValueChanged<bool> cb) {
-            return SwitchListTile(
-              title: Text(title),
-              value: value,
-              onChanged: (v) {
-                cb(v);
-                setSheet(() {});
-                setState(() {});
-              },
-            );
-          }
-
-          return Padding(
-            padding: const EdgeInsets.fromLTRB(8, 0, 8, 28),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
-                  child: Text('Map layers',
-                      style:
-                          Theme.of(context).textTheme.titleMedium),
-                ),
-                tile('Connectivity overlay', session.overlayOn, (v) {
-                  ref.read(sessionProvider.notifier).update(
-                      (s) => s.copyWith(overlayOn: v));
-                  session = ref.read(sessionProvider)!;
-                }),
-                tile('Community reports', session.communityLayerOn,
-                    (v) {
-                  ref.read(sessionProvider.notifier).update(
-                      (s) => s.copyWith(communityLayerOn: v));
-                  session = ref.read(sessionProvider)!;
-                }),
-                tile('Mobile towers', _towers,
-                    (v) => _towers = v),
-                tile('Essential places', _essentials,
-                    (v) => _essentials = v),
-                tile('Blackspot areas', _blackspots,
-                    (v) => _blackspots = v),
-              ],
-            ),
-          );
-        });
-      },
-    );
-  }
-
-  Future<void> _operators(BuildContext context, Session session) {
-    const ops = ['all', 'jio', 'airtel', 'vi', 'bsnl'];
-    return showModalBottomSheet<void>(
-      context: context,
-      showDragHandle: true,
-      builder: (context) {
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-                child: Text('Network operator',
-                    style:
-                        Theme.of(context).textTheme.titleMedium),
-              ),
-              for (final op in ops)
-                ListTile(
-                  contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 2),
-                  title: Text(operatorLabel(op)),
-                  trailing: session.operatorFilter == op
-                      ? Icon(PhosphorIconsFill.check,
-                          color: context.palette.beacon)
-                      : null,
-                  onTap: () {
-                    ref.read(sessionProvider.notifier).update(
-                        (s) => s.copyWith(operatorFilter: op));
-                    Navigator.pop(context);
-                  },
-                ),
-              const SizedBox(height: 8),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  void _placeSheet(BuildContext context, Place place) {
-    showModalBottomSheet<void>(
-      context: context,
-      showDragHandle: true,
-      builder: (context) {
-        final pal = context.palette;
-        return Padding(
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      color: pal.secondaryContainer,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Icon(categoryIcon(place.category),
-                        color: pal.beacon, size: 22),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(place.name,
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleLarge),
-                        Text(place.subtitle,
-                            style: TextStyle(
-                                color: pal.muted, fontSize: 13)),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              const SourceTag(source: 'estimated'),
-              const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton.icon(
-                  onPressed: () {
-                    ref.read(sessionProvider.notifier).update((s) {
-                      final recent = [
-                        place.name,
-                        ...s.recents
-                            .where((r) => r != place.name),
-                      ].take(8).toList();
-                      return s.copyWith(
-                          destinationId: place.id,
-                          recents: recent);
-                    });
-                    Navigator.pop(context);
-                    _map.move(place.point, 13);
-                  },
-                  icon: const Icon(
-                      PhosphorIconsRegular.navigationArrow,
-                      size: 18),
-                  label: const Text('Set as destination'),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
+  String _categoryWord(String c) => switch (c) {
+    'hospital' => 'Hospital',
+    'police' => 'Police',
+    'fuel' => 'Fuel',
+    'hotel' => 'Stay',
+    'restaurant' => 'Food',
+    'atm' => 'ATM',
+    'recovery' => 'Signal recovery point',
+    'blackspot' => 'Weak-signal area',
+    'destination' => 'Destination',
+    _ => 'Place',
+  };
 
   void _towerSheet(BuildContext context, Tower tower) {
-    showModalBottomSheet<void>(
+    final pal = context.palette;
+    final c = operatorColor(tower.operator);
+    showStagedSheet<void>(
       context: context,
-      showDragHandle: true,
-      builder: (context) {
-        final pal = context.palette;
-        return Padding(
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      color: _opColor(tower.operator)
-                          .withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Icon(PhosphorIconsRegular.broadcast,
-                        color: _opColor(tower.operator), size: 22),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(tower.name,
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleLarge),
-                        Text(
-                          '${operatorLabel(tower.operator)} · ${tower.tech}',
-                          style: TextStyle(color: pal.muted),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 14),
-              Text(tower.detail, style: dataStyle(context)),
-              const SizedBox(height: 8),
-              SourceTag(source: tower.source),
-              const SizedBox(height: 6),
-              Text(
-                '${tower.point.latitude.toStringAsFixed(4)}, '
-                '${tower.point.longitude.toStringAsFixed(4)}',
-                style: TextStyle(color: pal.muted, fontSize: 13),
-              ),
-            ],
-          ),
-        );
-      },
+      title: tower.name,
+      subtitle: '${operatorLabel(tower.operator)} · ${tower.tech}',
+      leading: Container(
+        width: 48,
+        height: 48,
+        decoration: BoxDecoration(
+          color: c.withValues(alpha: 0.14),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Icon(PhosphorIconsFill.broadcast, color: c),
+      ),
+      builder: (_) => Padding(
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(tower.detail, style: TextStyle(color: pal.text, height: 1.45)),
+            const SizedBox(height: 10),
+            MetaLine([
+              switch (tower.source) {
+                'measured' => 'Measured',
+                'metadata' => 'Tower metadata',
+                'community' => 'Community',
+                _ => 'Estimated',
+              },
+              '${tower.point.latitude.toStringAsFixed(4)}, '
+                  '${tower.point.longitude.toStringAsFixed(4)}',
+            ]),
+          ],
+        ),
+      ),
     );
   }
 
   void _reportSheet(BuildContext context, SignalReport report) {
-    showModalBottomSheet<void>(
+    final pal = context.palette;
+    showStagedSheet<void>(
       context: context,
-      showDragHandle: true,
-      builder: (context) {
-        final pal = context.palette;
-        return Padding(
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      color: pal.levelContainer(report.level),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Center(
-                        child: SignalBars(level: report.level)),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        SignalChip(level: report.level),
-                        const SizedBox(height: 4),
-                        Text(
-                          '${operatorLabel(report.operator)} · ${report.tech} · ${agoLabel(report.minutesAgo)}',
-                          style: TextStyle(
-                              color: pal.muted, fontSize: 13),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              if (report.comment.isNotEmpty) ...[
-                const SizedBox(height: 12),
-                Text(report.comment,
-                    style: TextStyle(color: pal.text, height: 1.5)),
-              ],
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  const SourceTag(source: 'community'),
-                  const Spacer(),
-                  Text('${(report.agreement * 100).round()}% agree',
-                      style: dataStyle(context, size: 13)),
-                ],
-              ),
-            ],
-          ),
-        );
+      title: switch (report.level) {
+        'good' => 'Good signal here',
+        'moderate' => 'Moderate signal',
+        'weak' => 'Weak signal here',
+        _ => 'No signal here',
       },
+      subtitle:
+          '${operatorLabel(report.operator)} · ${report.tech} · ${agoLabel(report.minutesAgo)}',
+      leading: Container(
+        width: 48,
+        height: 48,
+        decoration: BoxDecoration(
+          color: pal.levelContainer(report.level),
+          shape: BoxShape.circle,
+        ),
+        child: Center(child: SignalBars(level: report.level)),
+      ),
+      builder: (_) => Padding(
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (report.comment.isNotEmpty)
+              Text(report.comment, style: TextStyle(color: pal.text, height: 1.5)),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                const SourceTag(source: 'community'),
+                const Spacer(),
+                Text(
+                  '${(report.agreement * 100).round()}% agree',
+                  style: dataStyle(context, size: 13),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 
-  void _droppedPin(
-      BuildContext context, Session session, LatLng point) {
+  void _droppedPin(BuildContext context, Session session, LatLng point) {
     Place? nearest;
     var best = double.infinity;
     for (final place in session.catalog.places) {
@@ -992,489 +1148,236 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         nearest = place;
       }
     }
-    if (nearest == null) return;
-    final n = nearest;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Nearest: ${n.name}'),
-        action: SnackBarAction(
-          label: 'Use',
-          onPressed: () {
-            ref
-                .read(sessionProvider.notifier)
-                .update((s) => s.copyWith(destinationId: n.id));
-            _map.move(n.point, 13);
-          },
+    if (nearest != null) _placeSheet(context, nearest);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Chrome that reacts to the sheet
+// ---------------------------------------------------------------------------
+
+class _TopChrome extends StatelessWidget {
+  const _TopChrome({required this.sheet, required this.child});
+
+  final SpringSheetController sheet;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      bottom: false,
+      child: Align(
+        alignment: Alignment.topCenter,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 680),
+          child: Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: AnimatedBuilder(
+              animation: sheet,
+              builder: (context, child) {
+                // Starts leaving once the sheet passes ~40% of the way from
+                // half to full, gone before the sheet reaches the top.
+                final t = ((sheet.expansion - 0.35) / 0.5).clamp(0.0, 1.0);
+                return IgnorePointer(
+                  ignoring: t > 0.5,
+                  child: Opacity(
+                    opacity: 1 - t,
+                    child: Transform.translate(
+                      offset: Offset(0, -36 * t),
+                      child: child,
+                    ),
+                  ),
+                );
+              },
+              child: child,
+            ),
+          ),
         ),
       ),
     );
   }
 }
 
-// ---------------------------------------------------------------------------
-// Draggable journey sheet
-// ---------------------------------------------------------------------------
-
-class _JourneySheet extends StatelessWidget {
-  const _JourneySheet({
-    required this.session,
-    required this.sheetCtrl,
-    required this.onSnapTo,
-    required this.onStart,
-    required this.onCompare,
-    required this.onReport,
+class _FloatingControls extends StatelessWidget {
+  const _FloatingControls({
+    required this.sheet,
+    required this.directions,
     required this.onLayers,
-    required this.onOperator,
+    required this.onLocate,
+    required this.onDirections,
   });
 
-  final Session  session;
-  final DraggableScrollableController sheetCtrl;
-  final void Function(double) onSnapTo;
-  final VoidCallback onStart;
-  final VoidCallback onCompare;
-  final VoidCallback onReport;
+  final SpringSheetController sheet;
+  final bool directions;
   final VoidCallback onLayers;
-  final VoidCallback onOperator;
+  final VoidCallback onLocate;
+  final VoidCallback onDirections;
 
   @override
   Widget build(BuildContext context) {
-    final pal   = context.palette;
-    final dark  = Theme.of(context).brightness == Brightness.dark;
-    final route = session.route;
-    final stats = route.stats[session.operatorFilter] ??
-        route.stats['all']!;
-    final lowSegs = route.segments
-        .where((s) {
-          final l = s.levelFor(session.operatorFilter);
-          return l == 'none' || l == 'weak';
-        })
-        .toList();
-    final lowMin   = lowSegs.fold<int>(0, (t, s) => t + s.min);
-    final lowStart = lowSegs.isEmpty
-        ? null
-        : lowSegs.first.label.split(' – ').first;
-    final heroColor =
-        lowSegs.isEmpty ? pal.beacon : pal.moderate;
-
-    return DraggableScrollableSheet(
-      controller: sheetCtrl,
-      initialChildSize: _kSnapHalf,
-      minChildSize: _kSnapCollapsed,
-      maxChildSize: _kSnapFull,
-      snapSizes: const [_kSnapCollapsed, _kSnapHalf, _kSnapFull],
-      snap: true,
-      builder: (context, scrollCtrl) {
-        return Container(
-          decoration: BoxDecoration(
-            color: pal.surface,
-            borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(28)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black
-                    .withValues(alpha: dark ? 0.45 : 0.16),
-                blurRadius: 32,
-                offset: const Offset(0, -4),
+    final top = MediaQuery.paddingOf(context).top;
+    return Stack(
+      children: [
+        // Layers: top right, under the search chrome.
+        Positioned(
+          right: 12,
+          top: top + (directions ? 120 : 124),
+          child: AnimatedBuilder(
+            animation: sheet,
+            builder: (context, child) => Opacity(
+              opacity: (1 - sheet.expansion * 2).clamp(0.0, 1.0),
+              child: child,
+            ),
+            child: RoundIconButton(
+              icon: PhosphorIconsRegular.stack,
+              tooltip: 'Map layers',
+              size: 44,
+              onTap: onLayers,
+            ),
+          ),
+        ),
+        // Locate + the one filled button sit just above the sheet and ride
+        // with it, fading out as it rises past half.
+        AnimatedBuilder(
+          animation: sheet,
+          builder: (context, child) {
+            final fade = (1 - sheet.expansion * 3).clamp(0.0, 1.0);
+            return Positioned(
+              right: 12,
+              bottom: sheet.height + 12,
+              child: IgnorePointer(
+                ignoring: fade < 0.3,
+                child: Opacity(opacity: fade, child: child),
+              ),
+            );
+          },
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              RoundIconButton(
+                icon: PhosphorIconsRegular.crosshair,
+                tooltip: 'My location',
+                size: 44,
+                onTap: onLocate,
+              ),
+              AnimatedSize(
+                duration: Motion.of(context, Motion.standard),
+                curve: Motion.enter,
+                child: directions
+                    ? const SizedBox(width: 0)
+                    : Padding(
+                        padding: const EdgeInsets.only(top: 12),
+                        child: PrimaryMapFab(
+                          icon: PhosphorIconsFill.arrowBendUpRight,
+                          tooltip: 'Directions',
+                          onTap: onDirections,
+                        ),
+                      ),
               ),
             ],
           ),
-          child: CustomScrollView(
-            controller: scrollCtrl,
-            physics: const ClampingScrollPhysics(),
-            slivers: [
-              SliverToBoxAdapter(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // ── Drag handle ───────────────────────────────
-                    GestureDetector(
-                      onTap: () {
-                        final cur = sheetCtrl.size;
-                        if (cur <= _kSnapCollapsed + 0.02) {
-                          onSnapTo(_kSnapHalf);
-                        } else if (cur <= _kSnapHalf + 0.02) {
-                          onSnapTo(_kSnapFull);
-                        } else {
-                          onSnapTo(_kSnapCollapsed);
-                        }
-                      },
-                      behavior: HitTestBehavior.opaque,
-                      child: SizedBox(
-                        width: double.infinity,
-                        height: 28,
-                        child: Center(
-                          child: Container(
-                            width: 40,
-                            height: 4,
-                            decoration: BoxDecoration(
-                              color: pal.border,
-                              borderRadius:
-                                  BorderRadius.circular(2),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-
-                    // ── Collapsed: headline row ───────────────────
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(
-                          18, 0, 18, 0),
-                      child: Row(
-                        crossAxisAlignment:
-                            CrossAxisAlignment.end,
-                        children: [
-                          Text(
-                            '${route.durationMin ~/ 60}h '
-                            '${route.durationMin % 60}m',
-                            style: TextStyle(
-                              color: heroColor,
-                              fontSize: 40,
-                              fontWeight: FontWeight.w800,
-                              height: 1.0,
-                              letterSpacing: -1.5,
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Padding(
-                            padding:
-                                const EdgeInsets.only(bottom: 4),
-                            child: Text(
-                              '${route.distanceKm.toStringAsFixed(0)} km',
-                              style: TextStyle(
-                                color: pal.muted,
-                                fontSize: 18,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(height: 2),
-
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(
-                          18, 0, 18, 0),
-                      child: Text(
-                        '${route.name} · '
-                        '${operatorLabel(session.operatorFilter)}',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                            color: pal.muted, fontSize: 13),
-                      ),
-                    ),
-
-                    const SizedBox(height: 14),
-
-                    // ── Signal bar (always visible) ───────────────
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(
-                          18, 0, 18, 0),
-                      child: SignalCoverageBar(
-                          stats: stats,
-                          height: 10,
-                          showLabels: true),
-                    ),
-
-                    const SizedBox(height: 14),
-
-                    // ── Low-signal warning pill ───────────────────
-                    if (lowMin > 0)
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(
-                            18, 0, 18, 0),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 8),
-                          decoration: BoxDecoration(
-                            color: pal.warningContainer,
-                            borderRadius:
-                                BorderRadius.circular(12),
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(
-                                  PhosphorIconsRegular.wifiSlash,
-                                  size: 15,
-                                  color: pal.onWarningContainer),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  lowStart != null
-                                      ? '$lowMin min low/no signal from $lowStart'
-                                      : '$lowMin min low/no signal',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700,
-                                    color: pal.onWarningContainer,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-
-                    if (lowMin > 0) const SizedBox(height: 14),
-
-                    // ── Action buttons ────────────────────────────
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(
-                          18, 0, 18, 0),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            flex: 5,
-                            child: FilledButton.icon(
-                              onPressed: onStart,
-                              icon: const Icon(
-                                  PhosphorIconsRegular
-                                      .navigationArrow,
-                                  size: 17),
-                              label: const Text('Start'),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            flex: 4,
-                            child: OutlinedButton.icon(
-                              onPressed: onCompare,
-                              icon: const Icon(
-                                  PhosphorIconsRegular
-                                      .arrowsLeftRight,
-                                  size: 15),
-                              label: const Text('Compare'),
-                            ),
-                          ),
-                          const SizedBox(width: 4),
-                          PopupMenuButton<String>(
-                            tooltip: 'More',
-                            icon: Icon(
-                                PhosphorIconsRegular.dotsThree,
-                                color: pal.muted),
-                            onSelected: (v) {
-                              if (v == 'report') onReport();
-                              if (v == 'offline') {
-                                // demo notice
-                              }
-                            },
-                            itemBuilder: (_) => const [
-                              PopupMenuItem(
-                                value: 'report',
-                                child: Text('Pre-trip report'),
-                              ),
-                              PopupMenuItem(
-                                value: 'offline',
-                                child:
-                                    Text('Offline availability'),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(height: 20),
-
-                    // ── Full-only content ─────────────────────────
-                    // Thin divider that separates half from full
-                    Divider(height: 1, color: pal.border),
-                    const SizedBox(height: 4),
-                  ],
-                ),
-              ),
-
-              // ── All-operators coverage ────────────────────────────
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(18, 12, 18, 0),
-                  child: Text(
-                    'Coverage by network',
-                    style: Theme.of(context)
-                        .textTheme
-                        .titleSmall
-                        ?.copyWith(fontWeight: FontWeight.w700),
-                  ),
-                ),
-              ),
-
-              SliverList(
-                delegate: SliverChildBuilderDelegate(
-                  (context, i) {
-                    const ops = [
-                      'jio',
-                      'airtel',
-                      'vi',
-                      'bsnl'
-                    ];
-                    final op    = ops[i];
-                    final opStats =
-                        route.stats[op] ?? route.stats['all']!;
-                    return Padding(
-                      padding: const EdgeInsets.fromLTRB(
-                          18, 10, 18, 0),
-                      child: Column(
-                        crossAxisAlignment:
-                            CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Text(
-                                operatorLabel(op),
-                                style: const TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                '${opStats['good'] ?? 0}% good',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: pal.muted,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 5),
-                          SignalCoverageBar(
-                              stats: opStats, height: 7),
-                        ],
-                      ),
-                    );
-                  },
-                  childCount: 4,
-                ),
-              ),
-
-              // ── Route segments ─────────────────────────────────────
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(18, 20, 18, 4),
-                  child: Text(
-                    'Route segments',
-                    style: Theme.of(context)
-                        .textTheme
-                        .titleSmall
-                        ?.copyWith(fontWeight: FontWeight.w700),
-                  ),
-                ),
-              ),
-
-              SliverList(
-                delegate: SliverChildBuilderDelegate(
-                  (context, i) {
-                    final seg  = route.segments[i];
-                    final level =
-                        seg.levelFor(session.operatorFilter);
-                    final isLow =
-                        level == 'none' || level == 'weak';
-                    return Column(
-                      children: [
-                        ListTile(
-                          contentPadding:
-                              const EdgeInsets.symmetric(
-                                  horizontal: 18, vertical: 2),
-                          leading: Container(
-                            width: 36,
-                            height: 36,
-                            decoration: BoxDecoration(
-                              color: isLow
-                                  ? pal.warningContainer
-                                  : pal.successContainer,
-                              borderRadius:
-                                  BorderRadius.circular(10),
-                            ),
-                            child: Icon(
-                              isLow
-                                  ? PhosphorIconsRegular
-                                      .wifiSlash
-                                  : PhosphorIconsRegular.wifiHigh,
-                              size: 17,
-                              color: isLow
-                                  ? pal.onWarningContainer
-                                  : pal.onSuccessContainer,
-                            ),
-                          ),
-                          title: Text(
-                            seg.label,
-                            style: const TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w500),
-                          ),
-                          subtitle: Text(
-                            '${seg.km.toStringAsFixed(0)} km · '
-                            '${formatDuration(seg.min)}',
-                            style: TextStyle(
-                                color: pal.muted, fontSize: 12),
-                          ),
-                          trailing: SignalChip(
-                              level: level, compact: true),
-                        ),
-                        if (i < route.segments.length - 1)
-                          Divider(
-                            height: 1,
-                            color: pal.border,
-                            indent: 18,
-                            endIndent: 18,
-                          ),
-                      ],
-                    );
-                  },
-                  childCount: route.segments.length,
-                ),
-              ),
-
-              // Bottom padding for nav bar clearance
-              const SliverToBoxAdapter(
-                  child: SizedBox(height: 100)),
-            ],
-          ),
-        );
-      },
+        ),
+      ],
     );
   }
 }
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
+class _LayerTile extends StatelessWidget {
+  const _LayerTile({
+    required this.label,
+    required this.icon,
+    required this.on,
+    required this.onTap,
+  });
 
-Color _categoryColor(String category, SignalPalette palette) =>
-    switch (category) {
-      'hospital'  => const Color(0xFFE7483B),
-      'police'    => palette.route,
-      'fuel'      => const Color(0xFFE58A00),
-      'hotel'     => const Color(0xFF9A4DCE),
-      'recovery'  => palette.good,
-      'blackspot' => palette.moderate,
-      _           => palette.text,
-    };
-
-Color _opColor(String op) => switch (op) {
-      'jio'    => const Color(0xFF1F6BFF),
-      'airtel' => const Color(0xFFE10600),
-      'vi'     => const Color(0xFF7A3EAE),
-      'bsnl'   => const Color(0xFFD6A100),
-      _        => const Color(0xFF6BA8FF),
-    };
-
-class _DottedConnectorPainter extends CustomPainter {
-  const _DottedConnectorPainter();
+  final String label;
+  final IconData icon;
+  final bool on;
+  final VoidCallback onTap;
 
   @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()..color = const Color(0xFF8FA39E);
-    for (var y = 0.0; y < size.height; y += 5) {
-      canvas.drawCircle(Offset(size.width / 2, y + 1), 1.2, paint);
-    }
+  Widget build(BuildContext context) {
+    final pal = context.palette;
+    return Semantics(
+      toggled: on,
+      button: true,
+      label: label,
+      excludeSemantics: true,
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: Motion.quick,
+          curve: Motion.enter,
+          decoration: BoxDecoration(
+            color: on ? pal.secondaryContainer : pal.elevated,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: on ? pal.beacon : Colors.transparent,
+              width: 1.5,
+            ),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, color: on ? pal.beacon : pal.muted, size: 24),
+              const SizedBox(height: 8),
+              Text(
+                label,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: on ? FontWeight.w700 : FontWeight.w500,
+                  color: on ? pal.text : pal.muted,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
+}
+
+/// "You are here": a teal dot with a slow breathing halo.
+class _LocationPuck extends StatelessWidget {
+  const _LocationPuck();
 
   @override
-  bool shouldRepaint(_DottedConnectorPainter _) => false;
+  Widget build(BuildContext context) {
+    final pal = context.palette;
+    Widget halo = Container(
+      width: 48,
+      height: 48,
+      decoration: BoxDecoration(
+        color: pal.beacon.withValues(alpha: 0.16),
+        shape: BoxShape.circle,
+      ),
+    );
+    if (!Motion.reduced(context)) {
+      halo = halo
+          .animate(onPlay: (c) => c.repeat(reverse: true))
+          .scale(
+            begin: const Offset(0.6, 0.6),
+            end: const Offset(1, 1),
+            duration: 1600.ms,
+            curve: Curves.easeInOut,
+          );
+    }
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        halo,
+        Container(
+          width: 20,
+          height: 20,
+          decoration: BoxDecoration(
+            color: pal.beacon,
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.white, width: 3),
+            boxShadow: softShadow(context),
+          ),
+        ),
+      ],
+    );
+  }
 }
