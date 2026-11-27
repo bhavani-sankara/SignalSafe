@@ -48,13 +48,15 @@ class Glass extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final pal = context.palette;
+    final dark = Theme.of(context).brightness == Brightness.dark;
     return Material(
       color: color ?? pal.surface,
       elevation: elevation,
       shadowColor: Colors.black.withValues(alpha: 0.08),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(radius),
-        side: BorderSide(color: pal.border),
+        // Borders only in dark mode, where surfaces need separating.
+        side: dark ? BorderSide(color: pal.border) : BorderSide.none,
       ),
       clipBehavior: Clip.antiAlias,
       child: Padding(padding: padding, child: child),
@@ -396,18 +398,22 @@ class RoundIconButton extends StatelessWidget {
 
     return Tooltip(
       message: tooltip ?? '',
-      child: Material(
-        color: bg,
-        elevation: selected || sos ? 0 : 3,
-        shadowColor: Colors.black.withValues(alpha: 0.18),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: onTap,
-          child: SizedBox(
-            width: size,
-            height: size,
-            child: Icon(icon, color: fg, size: 20),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          boxShadow: selected || sos ? null : softShadow(context),
+        ),
+        child: Material(
+          color: bg,
+          shape: const CircleBorder(),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: onTap,
+            child: SizedBox(
+              width: size,
+              height: size,
+              child: Icon(icon, color: fg, size: 20),
+            ),
           ),
         ),
       ),
@@ -512,16 +518,35 @@ class SignalCoverageBar extends StatelessWidget {
     required this.stats,
     this.height = 10,
     this.showLabels = false,
+    this.showLegend = false,
   });
 
   final Map<String, int> stats;
   final double height;
   final bool showLabels;
 
+  /// A compact "● 45% strong  ● 28% fair …" key under the bar.
+  final bool showLegend;
+
+  static const _levels = ['good', 'moderate', 'weak', 'none'];
+
+  static String levelName(String level) => switch (level) {
+        'good' => 'strong',
+        'moderate' => 'fair',
+        'weak' => 'weak',
+        _ => 'none',
+      };
+
   @override
   Widget build(BuildContext context) {
     final pal = context.palette;
-    final levels = ['good', 'moderate', 'weak', 'none'];
+    // Levels with 0% get no sliver at all; each remaining segment is its
+    // own rounded capsule separated by a small gap.
+    final present = [
+      for (final l in _levels)
+        if ((stats[l] ?? 0) > 0) l,
+    ];
+    final gap = height >= 6 ? 3.0 : 2.0;
 
     return Semantics(
       label: 'Signal coverage: '
@@ -533,33 +558,36 @@ class SignalCoverageBar extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(height / 2),
-              child: SizedBox(
-                height: height,
-                child: Row(
-                  children: [
-                    for (final level in levels)
-                      Expanded(
-                        flex: (stats[level] ?? 0).clamp(1, 100),
-                        child: Container(
-                          margin: const EdgeInsets.only(right: 1.5),
-                          color: pal.level(level),
+            SizedBox(
+              height: height,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  for (var i = 0; i < present.length; i++) ...[
+                    if (i > 0) SizedBox(width: gap),
+                    Expanded(
+                      flex: stats[present[i]]!.clamp(1, 100),
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: pal.level(present[i]),
+                          borderRadius: BorderRadius.circular(height / 2),
                         ),
                       ),
+                    ),
                   ],
-                ),
+                ],
               ),
             ),
             if (showLabels) ...[
               const SizedBox(height: 6),
               Row(
                 children: [
-                  for (final level in levels)
+                  for (var i = 0; i < present.length; i++) ...[
+                    if (i > 0) SizedBox(width: gap),
                     Expanded(
-                      flex: (stats[level] ?? 0).clamp(1, 100),
+                      flex: stats[present[i]]!.clamp(1, 100),
                       child: Text(
-                        '${stats[level] ?? 0}%',
+                        '${stats[present[i]]}%',
                         style: TextStyle(
                           fontSize: 10,
                           color: pal.muted,
@@ -568,6 +596,46 @@ class SignalCoverageBar extends StatelessWidget {
                         overflow: TextOverflow.clip,
                         maxLines: 1,
                       ),
+                    ),
+                  ],
+                ],
+              ),
+            ],
+            if (showLegend) ...[
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 12,
+                runSpacing: 4,
+                children: [
+                  for (final l in present)
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 8,
+                          height: 8,
+                          decoration: BoxDecoration(
+                            color: pal.level(l),
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 5),
+                        Text.rich(
+                          TextSpan(
+                            children: [
+                              TextSpan(
+                                text: '${stats[l]}%',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  color: pal.text,
+                                ),
+                              ),
+                              TextSpan(text: ' ${levelName(l)}'),
+                            ],
+                          ),
+                          style: TextStyle(fontSize: 12, color: pal.muted),
+                        ),
+                      ],
                     ),
                 ],
               ),

@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:signalsafe/features/shell/app_shell.dart';
 
 void main() {
-  testWidgets('uses bottom navigation compactly and a rail when expanded', (
+  testWidgets('uses the floating bottom bar compactly and a rail when wide', (
     tester,
   ) async {
     final router = _router();
@@ -18,33 +18,32 @@ void main() {
     await tester.pumpWidget(MaterialApp.router(routerConfig: router));
     await tester.pumpAndSettle();
 
-    expect(find.byType(NavigationBar), findsOneWidget);
     expect(find.byType(NavigationRail), findsNothing);
+    expect(find.bySemanticsLabel('Trips'), findsOneWidget);
+
+    await tester.tap(find.text('Trips'));
+    await tester.pumpAndSettle();
+    expect(find.text('trips page'), findsOneWidget);
 
     tester.view.physicalSize = const Size(800, 844);
     await tester.pumpAndSettle();
 
     expect(find.byType(NavigationRail), findsOneWidget);
-    expect(find.byType(NavigationBar), findsNothing);
   });
 }
 
 GoRouter _router() {
-  const branches = ['map', 'trips', 'safety', 'community', 'profile'];
+  Widget page(String name) => Center(child: Text('$name page'));
   return GoRouter(
     initialLocation: '/map',
     routes: [
       StatefulShellRoute.indexedStack(
         builder: (context, state, shell) => AppShell(shell: shell),
         branches: [
-          for (final branch in branches)
+          for (final name in ['map', 'trips', 'safety', 'community', 'profile'])
             StatefulShellBranch(
               routes: [
-                GoRoute(
-                  path: '/$branch',
-                  builder: (context, state) =>
-                      Scaffold(body: Center(child: Text(branch))),
-                ),
+                GoRoute(path: '/$name', builder: (c, s) => page(name)),
               ],
             ),
         ],

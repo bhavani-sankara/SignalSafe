@@ -1,14 +1,21 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:phosphor_icons/phosphor_icons.dart';
 
+import '../../core/geo.dart';
 import '../../core/models.dart';
 import '../../core/session.dart';
 import '../../theme/app_theme.dart';
+import '../../theme/motion.dart';
 import '../../widgets/hud.dart';
 import '../../widgets/session_gate.dart';
+import 'map_widgets.dart';
 
+/// Full-screen search. It cross-fades in over the map (see the router), with
+/// the field in the same pill shape as the map's search bar so it reads as
+/// the bar "opening up".
 class SearchScreen extends ConsumerStatefulWidget {
   const SearchScreen({super.key, this.mode = 'destination'});
 
@@ -32,6 +39,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   Widget build(BuildContext context) {
     return SessionGate(
       builder: (context, session) {
+        final pal = context.palette;
         final q = _query.text.trim().toLowerCase();
         final results = session.catalog.places.where((place) {
           if (_category != null && place.category != _category) return false;
@@ -41,130 +49,126 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               place.category.contains(q);
         }).toList();
         final settingOrigin = widget.mode == 'origin';
+        final showRecents = q.isEmpty && _category == null;
+
         return Scaffold(
-          appBar: AppBar(
-            title: Text(settingOrigin ? 'Choose start' : 'Search'),
-          ),
-          body: MaxWidthContent(
-            child: Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-                  child: TextField(
-                    controller: _query,
-                    autofocus: true,
-                    onChanged: (_) => setState(() {}),
-                    decoration: InputDecoration(
-                      labelText: 'Search places',
-                      hintText: 'Hospital, fuel, recovery…',
-                      prefixIcon: const Icon(
-                        PhosphorIconsRegular.magnifyingGlass,
+          backgroundColor: pal.surface,
+          body: SafeArea(
+            child: MaxWidthContent(
+              child: Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+                    child: Container(
+                      height: 54,
+                      decoration: BoxDecoration(
+                        color: pal.surface,
+                        borderRadius: BorderRadius.circular(27),
+                        boxShadow: softShadow(context, strength: 1.3),
                       ),
-                      suffixIcon: _query.text.isEmpty
-                          ? null
-                          : IconButton(
+                      child: Row(
+                        children: [
+                          IconButton(
+                            tooltip: 'Back',
+                            onPressed: () => context.pop(),
+                            icon: Icon(
+                              PhosphorIconsRegular.arrowLeft,
+                              color: pal.text,
+                            ),
+                          ),
+                          Expanded(
+                            child: TextField(
+                              controller: _query,
+                              autofocus: true,
+                              onChanged: (_) => setState(() {}),
+                              style: TextStyle(fontSize: 16, color: pal.text),
+                              decoration: InputDecoration(
+                                hintText: settingOrigin
+                                    ? 'Choose a start point'
+                                    : 'Search places',
+                                filled: false,
+                                border: InputBorder.none,
+                                enabledBorder: InputBorder.none,
+                                focusedBorder: InputBorder.none,
+                                contentPadding: EdgeInsets.zero,
+                                hintStyle: TextStyle(
+                                  color: pal.muted,
+                                  fontSize: 16,
+                                ),
+                              ),
+                            ),
+                          ),
+                          if (_query.text.isNotEmpty)
+                            IconButton(
                               tooltip: 'Clear search',
                               onPressed: () {
                                 _query.clear();
                                 setState(() {});
                               },
-                              icon: const Icon(PhosphorIconsRegular.x),
-                            ),
+                              icon: Icon(
+                                PhosphorIconsRegular.x,
+                                color: pal.muted,
+                              ),
+                            )
+                          else
+                            const SizedBox(width: 12),
+                        ],
+                      ),
                     ),
                   ),
-                ),
-                SizedBox(
-                  height: 48,
-                  child: ListView(
-                    scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    children: [
-                      for (final item in const [
-                        ('hospital', 'Hospitals'),
-                        ('police', 'Police'),
-                        ('fuel', 'Fuel'),
-                        ('hotel', 'Hotels'),
-                        ('restaurant', 'Food'),
-                        ('atm', 'ATMs'),
-                        ('recovery', 'Recovery'),
-                        ('blackspot', 'Weak signal'),
-                      ])
-                        Padding(
-                          padding: const EdgeInsets.only(right: 8),
-                          child: FilterChip(
-                            avatar: Icon(categoryIcon(item.$1), size: 16),
-                            label: Text(item.$2),
-                            selected: _category == item.$1,
-                            selectedColor: context.palette.beacon.withValues(
-                              alpha: 0.18,
-                            ),
-                            checkmarkColor: context.palette.beacon,
-                            side: BorderSide(
-                              color: _category == item.$1
-                                  ? context.palette.beacon
-                                  : context.palette.border,
-                            ),
-                            onSelected: (_) => setState(() {
-                              _category = _category == item.$1 ? null : item.$1;
-                            }),
-                          ),
-                        ),
-                    ],
+                  CategoryChips(
+                    selected: _category,
+                    onSelected: (c) => setState(() => _category = c),
                   ),
-                ),
-                if (q.isEmpty) _recents(session),
-                Expanded(
-                  child: results.isEmpty
-                      ? Center(
-                          child: Padding(
-                            padding: const EdgeInsets.all(24),
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  PhosphorIconsRegular.magnifyingGlass,
-                                  size: 32,
-                                  color: context.palette.muted,
-                                ),
-                                const SizedBox(height: 12),
-                                Text(
-                                  'No places found',
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .titleMedium,
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  'Try another name or clear the filters.',
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                    color: context.palette.muted,
+                  const SizedBox(height: 4),
+                  Expanded(
+                    child: results.isEmpty
+                        ? _empty(context)
+                        : ListView(
+                            padding: const EdgeInsets.only(bottom: 24),
+                            children: [
+                              if (showRecents && session.recents.isNotEmpty) ...[
+                                _label(context, 'Recent'),
+                                for (final r in session.recents)
+                                  _row(
+                                    context,
+                                    icon: PhosphorIconsRegular
+                                        .clockCounterClockwise,
+                                    tint: pal.elevated,
+                                    iconColor: pal.muted,
+                                    title: r,
+                                    onTap: () {
+                                      _query.text = r;
+                                      setState(() {});
+                                    },
+                                    trailing: Icon(
+                                      PhosphorIconsRegular.arrowUpLeft,
+                                      color: pal.muted,
+                                      size: 18,
+                                    ),
                                   ),
-                                ),
-                                const SizedBox(height: 12),
-                                TextButton(
-                                  onPressed: () {
-                                    _query.clear();
-                                    setState(() => _category = null);
-                                  },
-                                  child: const Text('Clear search and filters'),
-                                ),
+                                const SizedBox(height: 8),
+                                _label(context, 'Places'),
                               ],
-                            ),
+                              for (var i = 0; i < results.length; i++)
+                                _placeRow(
+                                  context,
+                                  session,
+                                  results[i],
+                                  settingOrigin,
+                                ).animate(
+                                  key: ValueKey('$q-$_category-${results[i].id}'),
+                                ).fadeIn(
+                                  delay: Motion.reduced(context)
+                                      ? Duration.zero
+                                      : (18 * i.clamp(0, 10)).ms,
+                                  duration: 200.ms,
+                                ),
+                            ],
                           ),
-                        )
-                      : ListView.separated(
-                          itemCount: results.length,
-                          separatorBuilder: (_, _) => const Divider(height: 1),
-                          itemBuilder: (context, i) => _tile(
-                            context,
-                            session,
-                            results[i],
-                            settingOrigin,
-                          ),
-                        ),
-                ),
-              ],
+                  ),
+                ],
+              ),
             ),
           ),
         );
@@ -172,43 +176,94 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     );
   }
 
-  Widget _recents(Session session) {
-    if (session.recents.isEmpty) return const SizedBox.shrink();
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SectionLabel('Recent'),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              for (final recent in session.recents)
-                ActionChip(
-                  label: Text(recent),
-                  onPressed: () {
-                    _query.text = recent;
-                    setState(() {});
-                  },
-                ),
-            ],
-          ),
-        ],
+  Widget _label(BuildContext context, String text) => Padding(
+    padding: const EdgeInsets.fromLTRB(20, 14, 20, 6),
+    child: Text(
+      text,
+      style: TextStyle(
+        color: context.palette.muted,
+        fontSize: 13,
+        fontWeight: FontWeight.w600,
+      ),
+    ),
+  );
+
+  Widget _row(
+    BuildContext context, {
+    required IconData icon,
+    required Color tint,
+    required Color iconColor,
+    required String title,
+    String? subtitle,
+    Widget? trailing,
+    required VoidCallback onTap,
+  }) {
+    final pal = context.palette;
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 9, 16, 9),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(color: tint, shape: BoxShape.circle),
+              child: Icon(icon, size: 19, color: iconColor),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: pal.text,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  if (subtitle != null) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(color: pal.muted, fontSize: 13),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            ?trailing,
+          ],
+        ),
       ),
     );
   }
 
-  Widget _tile(
+  Widget _placeRow(
     BuildContext context,
     Session session,
     Place place,
     bool origin,
   ) {
-    return ListTile(
-      leading: Icon(categoryIcon(place.category)),
-      title: Text(place.name),
-      subtitle: Text(place.subtitle),
+    final pal = context.palette;
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final km = distance(session.here, place.point) / 1000;
+    return _row(
+      context,
+      icon: categoryIcon(place.category),
+      tint: categoryTint(place.category, dark),
+      iconColor: categoryAccent(place.category, pal),
+      title: place.name,
+      subtitle: [
+        if (km > 0.05) '${km.toStringAsFixed(km < 10 ? 1 : 0)} km',
+        place.subtitle,
+      ].join('  ·  '),
       onTap: () {
         ref.read(sessionProvider.notifier).update((s) {
           final recent = [
@@ -221,8 +276,43 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             recents: recent,
           );
         });
-        context.pop();
+        context.pop(place.id);
       },
+    );
+  }
+
+  Widget _empty(BuildContext context) {
+    final pal = context.palette;
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              PhosphorIconsRegular.magnifyingGlass,
+              size: 32,
+              color: pal.muted,
+            ),
+            const SizedBox(height: 12),
+            Text('No places found', style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 4),
+            Text(
+              'Try another name or clear the filters.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: pal.muted),
+            ),
+            const SizedBox(height: 12),
+            OutlinedButton(
+              onPressed: () {
+                _query.clear();
+                setState(() => _category = null);
+              },
+              child: const Text('Clear search and filters'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

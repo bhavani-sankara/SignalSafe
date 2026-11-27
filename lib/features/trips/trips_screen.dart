@@ -7,8 +7,10 @@ import 'package:phosphor_icons/phosphor_icons.dart';
 import '../../core/models.dart';
 import '../../core/session.dart';
 import '../../theme/app_theme.dart';
+import '../../theme/motion.dart';
 import '../../widgets/hud.dart';
 import '../../widgets/session_gate.dart';
+import '../map/map_widgets.dart';
 
 class TripsScreen extends ConsumerWidget {
   const TripsScreen({super.key});
@@ -21,114 +23,179 @@ class TripsScreen extends ConsumerWidget {
             .where((t) => t.kind == 'saved' || t.offlinePrepared)
             .toList();
         final pal = context.palette;
+        final reduced = Motion.reduced(context);
+
+        Widget enter(Widget w, int i) => reduced
+            ? w
+            : w
+                  .animate(delay: (50 * i).ms)
+                  .fadeIn(duration: 280.ms, curve: Motion.enter)
+                  .slideY(
+                    begin: 0.05,
+                    end: 0,
+                    duration: 320.ms,
+                    curve: Motion.enter,
+                  );
 
         return Scaffold(
-          appBar: AppBar(
-            title: const Text('Trips'),
-            actions: [
-              IconButton(
-                tooltip: 'Add a place',
-                onPressed: () => context.push('/search?mode=destination'),
-                icon: const Icon(PhosphorIconsRegular.plus),
-              ),
-              const SizedBox(width: 4),
-            ],
-          ),
-          body: MaxWidthContent(
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 120),
-              children: [
-                // ── Saved places row ──────────────────────────────────
-                SizedBox(
-                  height: 110,
-                  child: ListView(
-                    scrollDirection: Axis.horizontal,
-                    children: [
-                      for (final place in session.catalog.savedPlaces)
-                        _placeBubble(context, ref, place)
-                            .animate(delay: (session.catalog.savedPlaces
-                                        .indexOf(place) *
-                                    60)
-                                .ms)
-                            .fadeIn(duration: 300.ms)
-                            .slideX(
-                                begin: 0.15,
-                                end: 0,
-                                duration: 320.ms,
-                                curve: Curves.easeOut),
-                      _newPlaceBubble(context),
-                    ],
+          body: SafeArea(
+            bottom: false,
+            child: MaxWidthContent(
+              child: ListView(
+                padding: const EdgeInsets.only(bottom: 120),
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 12, 12, 4),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'Trips',
+                            style: Theme.of(context).textTheme.headlineMedium,
+                          ),
+                        ),
+                        IconButton(
+                          tooltip: 'Add a place',
+                          onPressed: () =>
+                              context.push('/search?mode=destination'),
+                          style: IconButton.styleFrom(
+                            backgroundColor: pal.secondaryContainer,
+                          ),
+                          icon: Icon(
+                            PhosphorIconsRegular.plus,
+                            color: pal.onSecondaryContainer,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
 
-                const SectionHeading('Saved journeys'),
-
-                // ── Empty state ───────────────────────────────────────
-                if (journeys.isEmpty)
-                  _emptyJourneys(context, pal)
-                      .animate()
-                      .fadeIn(duration: 400.ms)
-                      .slideY(begin: 0.06, end: 0),
-
-                // ── Journey cards ─────────────────────────────────────
-                for (var i = 0; i < journeys.length; i++)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 14),
-                    child: _tripCard(context, ref, session, journeys[i]),
-                  )
-                      .animate(delay: (i * 60).ms)
-                      .fadeIn(duration: 320.ms)
-                      .slideY(
-                          begin: 0.05,
-                          end: 0,
-                          duration: 340.ms,
-                          curve: Curves.easeOut),
-
-                // ── Recent searches ────────────────────────────────────
-                Row(
-                  children: [
-                    const Expanded(child: SectionHeading('Recent searches')),
-                    if (session.recents.isNotEmpty)
-                      TextButton(
-                        onPressed: () => ref
-                            .read(sessionProvider.notifier)
-                            .update((s) => s.copyWith(recents: const [])),
-                        child: const Text('Clear'),
+                  // ── Saved places as pills ───────────────────────────────
+                  enter(
+                    SizedBox(
+                      height: 56,
+                      child: ListView(
+                        scrollDirection: Axis.horizontal,
+                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                        children: [
+                          for (final place in session.catalog.savedPlaces) ...[
+                            _placePill(context, ref, place),
+                            const SizedBox(width: 8),
+                          ],
+                          OutlinedButton.icon(
+                            onPressed: () =>
+                                context.push('/search?mode=destination'),
+                            icon: const Icon(
+                              PhosphorIconsRegular.plus,
+                              size: 16,
+                            ),
+                            label: const Text('Add place'),
+                          ),
+                        ],
                       ),
-                  ],
-                ),
-
-                if (session.recents.isEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 16),
-                    child: Text(
-                      'Places you search for will appear here.',
-                      style: TextStyle(color: pal.muted),
                     ),
-                  )
-                else
-                  for (final recent in session.recents)
-                    ListTile(
-                      leading: Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          color: pal.elevated,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Icon(
-                          PhosphorIconsRegular.clockCounterClockwise,
-                          color: pal.muted,
-                          size: 18,
+                    0,
+                  ),
+
+                  SheetSectionTitle(
+                    'Saved journeys',
+                    subtitle: journeys.length > 1
+                        ? '${journeys.length} saved · swipe for more'
+                        : null,
+                  ),
+
+                  if (journeys.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: enter(_emptyJourneys(context, pal), 1),
+                    )
+                  else
+                    SizedBox(
+                      height: 392,
+                      child: ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        itemCount: journeys.length,
+                        separatorBuilder: (_, _) => const SizedBox(width: 12),
+                        itemBuilder: (context, i) {
+                          final w = MediaQuery.sizeOf(context).width.clamp(
+                            300.0,
+                            560.0,
+                          );
+                          return SizedBox(
+                            // ~86% wide so a second card peeks in.
+                            width: journeys.length > 1 ? w * 0.86 : w - 32,
+                            child: enter(
+                              _tripCard(context, ref, session, journeys[i]),
+                              i + 1,
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+
+                  // ── Recent searches ───────────────────────────────────
+                  SheetSectionTitle(
+                    'Recent searches',
+                    trailing: session.recents.isEmpty
+                        ? null
+                        : TextButton(
+                            onPressed: () => ref
+                                .read(sessionProvider.notifier)
+                                .update((s) => s.copyWith(recents: const [])),
+                            child: const Text('Clear'),
+                          ),
+                  ),
+                  if (session.recents.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: Text(
+                        'Places you search for will appear here.',
+                        style: TextStyle(color: pal.muted),
+                      ),
+                    )
+                  else
+                    for (final recent in session.recents)
+                      InkWell(
+                        onTap: () => context.go('/map'),
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 40,
+                                height: 40,
+                                decoration: BoxDecoration(
+                                  color: pal.elevated,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(
+                                  PhosphorIconsRegular.clockCounterClockwise,
+                                  color: pal.muted,
+                                  size: 18,
+                                ),
+                              ),
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Text(
+                                  recent,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w500,
+                                    fontSize: 15,
+                                  ),
+                                ),
+                              ),
+                              Icon(
+                                PhosphorIconsRegular.arrowUpLeft,
+                                color: pal.muted,
+                                size: 18,
+                              ),
+                            ],
+                          ),
                         ),
                       ),
-                      title: Text(recent,
-                          style: const TextStyle(fontWeight: FontWeight.w500)),
-                      trailing: Icon(PhosphorIconsRegular.arrowUpLeft,
-                          color: pal.muted, size: 18),
-                      onTap: () => context.go('/map'),
-                    ),
-              ],
+                ],
+              ),
             ),
           ),
         );
@@ -137,26 +204,23 @@ class TripsScreen extends ConsumerWidget {
   }
 
   Widget _emptyJourneys(BuildContext context, SignalPalette pal) {
-    return Glass(
-      padding: const EdgeInsets.all(24),
+    return Container(
+      padding: const EdgeInsets.all(22),
+      decoration: BoxDecoration(
+        color: pal.secondaryContainer.withValues(alpha: 0.6),
+        borderRadius: BorderRadius.circular(22),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: pal.secondaryContainer,
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Icon(PhosphorIconsRegular.path, color: pal.beacon, size: 24),
+          Icon(PhosphorIconsRegular.path, color: pal.beacon, size: 28),
+          const SizedBox(height: 12),
+          Text(
+            'Your next journey starts here.',
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
           ),
-          const SizedBox(height: 14),
-          Text('Your next journey starts here.',
-              style: Theme.of(context)
-                  .textTheme
-                  .titleMedium
-                  ?.copyWith(fontWeight: FontWeight.w700)),
           const SizedBox(height: 6),
           Text(
             'Compare routes on the map and save one to keep it here.',
@@ -173,109 +237,60 @@ class TripsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _placeBubble(
-      BuildContext context, WidgetRef ref, Map<String, String> place) {
+  Widget _placePill(
+    BuildContext context,
+    WidgetRef ref,
+    Map<String, String> place,
+  ) {
     final label = place['label']!.split(' · ');
     final isHome = label.first.toLowerCase() == 'home';
     final pal = context.palette;
-
-    return SizedBox(
-      width: 88,
+    return Material(
+      color: pal.surface,
+      shape: const StadiumBorder(),
+      elevation: 0,
       child: InkWell(
-        borderRadius: BorderRadius.circular(16),
+        customBorder: const StadiumBorder(),
         onTap: () {
-          ref.read(sessionProvider.notifier).update(
-              (s) => s.copyWith(destinationId: place['id']));
+          ref
+              .read(sessionProvider.notifier)
+              .update((s) => s.copyWith(destinationId: place['id']));
           context.go('/map');
         },
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(8, 0, 16, 0),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(22),
+            boxShadow: softShadow(context),
+            color: pal.surface,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                width: 52,
-                height: 52,
+                width: 28,
+                height: 28,
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: isHome
-                        ? [
-                            pal.beacon.withValues(alpha: 0.2),
-                            pal.beacon.withValues(alpha: 0.08),
-                          ]
-                        : [
-                            pal.sos.withValues(alpha: 0.18),
-                            pal.sos.withValues(alpha: 0.07),
-                          ],
-                  ),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: isHome
-                        ? pal.beacon.withValues(alpha: 0.25)
-                        : pal.sos.withValues(alpha: 0.2),
-                  ),
+                  color: isHome
+                      ? pal.secondaryContainer
+                      : pal.destination.withValues(alpha: 0.14),
+                  shape: BoxShape.circle,
                 ),
                 child: Icon(
                   isHome
-                      ? PhosphorIconsRegular.houseLine
-                      : PhosphorIconsRegular.mapPinLine,
-                  color: isHome ? pal.beacon : pal.sos,
-                  size: 22,
+                      ? PhosphorIconsFill.houseLine
+                      : PhosphorIconsFill.mapPin,
+                  size: 15,
+                  color: isHome ? pal.beacon : pal.destination,
                 ),
               ),
-              const SizedBox(height: 7),
+              const SizedBox(width: 8),
               Text(
                 label.first,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
                 style: const TextStyle(
-                    fontWeight: FontWeight.w600, fontSize: 12),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _newPlaceBubble(BuildContext context) {
-    final pal = context.palette;
-    return SizedBox(
-      width: 88,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: () => context.push('/search?mode=destination'),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                width: 52,
-                height: 52,
-                decoration: BoxDecoration(
-                  color: pal.elevated,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: pal.border,
-                    style: BorderStyle.solid,
-                    width: 1.5,
-                  ),
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
                 ),
-                child: Icon(PhosphorIconsRegular.plus,
-                    color: pal.muted, size: 22),
-              ),
-              const SizedBox(height: 7),
-              Text(
-                'Add place',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                    color: pal.muted, fontWeight: FontWeight.w500, fontSize: 12),
               ),
             ],
           ),
@@ -285,152 +300,138 @@ class TripsScreen extends ConsumerWidget {
   }
 
   Widget _tripCard(
-      BuildContext context, WidgetRef ref, Session session, SavedTrip trip) {
+    BuildContext context,
+    WidgetRef ref,
+    Session session,
+    SavedTrip trip,
+  ) {
     final route = session.catalog.routeById(trip.routeId);
     final origin = session.catalog.place(trip.originId);
     final destination = session.catalog.place(trip.destinationId);
     final pal = context.palette;
-    final lowMin = route.segments
-        .where((s) {
-          final level = s.levelFor(session.operatorFilter);
-          return level == 'none' || level == 'weak';
-        })
-        .fold<int>(0, (t, s) => t + s.min);
-    final stats =
-        route.stats[session.operatorFilter] ?? route.stats['all']!;
-    final goodPct = stats['good'] ?? 0;
-    final hasGoodSignal = goodPct >= 60;
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final lowMin = lowSignalMinutes(route, session.operatorFilter);
+    final stats = route.stats[session.operatorFilter] ?? route.stats['all']!;
+    final score = networkScore(route, session.operatorFilter);
 
     return Material(
       color: pal.surface,
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(24),
       clipBehavior: Clip.antiAlias,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          border: Border.all(color: pal.border),
-          borderRadius: BorderRadius.circular(20),
-        ),
+      child: InkWell(
+        onTap: () => context.push('/trip/${trip.id}'),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Map thumbnail with signal gradient header
-            Stack(
-              children: [
-                const RoutePreview(height: 112),
-                // Signal health gradient overlay at the bottom of preview
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  height: 36,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Colors.transparent,
-                          (hasGoodSignal ? pal.successContainer : pal.warningContainer)
-                              .withValues(alpha: 0.5),
-                        ],
+            // Big rounded "photo" of the route with floating badges.
+            Padding(
+              padding: const EdgeInsets.all(8),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(18),
+                child: Stack(
+                  children: [
+                    const RoutePreview(height: 150),
+                    Positioned(
+                      left: 10,
+                      top: 10,
+                      child: _FrostedBadge(
+                        icon: PhosphorIconsFill.clock,
+                        label: formatDuration(route.durationMin),
                       ),
                     ),
-                  ),
+                    Positioned(
+                      right: 10,
+                      top: 10,
+                      child: _FrostedBadge(
+                        icon: PhosphorIconsFill.cellSignalHigh,
+                        iconColor: scoreColor(pal, score),
+                        label: '$score signal',
+                      ),
+                    ),
+                  ],
                 ),
-                // Signal chip floating on the preview
-                Positioned(
-                  right: 10,
-                  bottom: 8,
-                  child: SignalChip(
-                    level: hasGoodSignal ? 'good' : 'moderate',
-                    label: hasGoodSignal ? '$goodPct% good signal' : '$lowMin min low signal',
-                    compact: true,
-                  ),
-                ),
-              ],
+              ),
             ),
-
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+              padding: const EdgeInsets.fromLTRB(16, 6, 16, 14),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     trip.name,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context)
-                        .textTheme
-                        .titleMedium
-                        ?.copyWith(fontWeight: FontWeight.w700),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '${origin.name.split(',').first} → ${destination.name}',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(color: pal.muted, fontSize: 13),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 17,
+                    ),
                   ),
+                  const SizedBox(height: 3),
+                  MetaLine([
+                    '${origin.name.split(',').first} → ${destination.name}',
+                    '${route.distanceKm.toStringAsFixed(0)} km',
+                  ]),
+                  const SizedBox(height: 12),
+                  SignalCoverageBar(stats: stats, height: 6),
                   const SizedBox(height: 10),
-
-                  // Signal coverage bar
-                  SignalCoverageBar(stats: stats, height: 7),
-
-                  const SizedBox(height: 10),
-
-                  // Stat pills
-                  RouteStatRow(
-                    distanceKm: route.distanceKm,
-                    durationMin: route.durationMin,
-                    lowSignalMin: lowMin,
+                  Row(
+                    children: [
+                      if (lowMin > 0)
+                        Flexible(
+                          child: Text(
+                            '$lowMin min low/no signal on this route',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: dark ? pal.moderate : pal.onWarningContainer,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
-
                   if (trip.offlinePrepared) ...[
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 8),
                     Tooltip(
                       message:
                           'This saved plan does not include downloaded map tiles.',
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 5),
-                        decoration: BoxDecoration(
-                          color: pal.successContainer,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(PhosphorIconsRegular.check,
-                                size: 13, color: pal.onSuccessContainer),
-                            const SizedBox(width: 5),
-                            Text(
-                              'Offline plan · demo',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: pal.onSuccessContainer,
-                              ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            PhosphorIconsFill.checkCircle,
+                            size: 15,
+                            color: pal.good,
+                          ),
+                          const SizedBox(width: 5),
+                          Text(
+                            'Offline plan · demo',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: pal.good,
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
-
-                  const SizedBox(height: 12),
-
+                  const SizedBox(height: 14),
                   Row(
                     children: [
-                      TextButton(
-                        onPressed: () => context.push('/trip/${trip.id}'),
-                        child: const Text('Details'),
+                      FilledButton.icon(
+                        onPressed: () => _start(context, ref, trip),
+                        icon: const Icon(
+                          PhosphorIconsFill.navigationArrow,
+                          size: 17,
+                        ),
+                        label: const Text('Start'),
                       ),
                       const SizedBox(width: 8),
-                      Expanded(
-                        child: FilledButton(
-                          onPressed: () => _start(context, ref, trip),
-                          child: const Text('Start'),
-                        ),
+                      OutlinedButton(
+                        onPressed: () => context.push('/trip/${trip.id}'),
+                        child: const Text('Details'),
                       ),
                     ],
                   ),
@@ -444,7 +445,9 @@ class TripsScreen extends ConsumerWidget {
   }
 
   void _start(BuildContext context, WidgetRef ref, SavedTrip trip) {
-    ref.read(sessionProvider.notifier).update(
+    ref
+        .read(sessionProvider.notifier)
+        .update(
           (s) => s.copyWith(
             selectedRouteId: trip.routeId,
             originId: trip.originId,
@@ -453,5 +456,44 @@ class TripsScreen extends ConsumerWidget {
           ),
         );
     context.push('/navigate');
+  }
+}
+
+/// Small frosted label laid over a route image.
+class _FrostedBadge extends StatelessWidget {
+  const _FrostedBadge({
+    required this.icon,
+    required this.label,
+    this.iconColor,
+  });
+
+  final IconData icon;
+  final String label;
+  final Color? iconColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(8, 5, 10, 5),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.88),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 13, color: iconColor ?? const Color(0xFF0D1B18)),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF0D1B18),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

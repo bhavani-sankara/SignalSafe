@@ -59,60 +59,60 @@ class SignalPalette {
   final Color destination;
 
   static const dark = SignalPalette(
-    ink: Color(0xFF0E1512),
-    surface: Color(0xFF151D1A),
-    elevated: Color(0xFF1E2825),
-    text: Color(0xFFE2E8E5),
-    muted: Color(0xFF8FA39E),
-    beacon: Color(0xFF4DB6A8),
-    route: Color(0xFF4DB6A8),
+    ink: Color(0xFF0C1017),
+    surface: Color(0xFF131922),
+    elevated: Color(0xFF1B232F),
+    text: Color(0xFFE4E9F1),
+    muted: Color(0xFF95A1B5),
+    beacon: Color(0xFF8AB4FF),
+    route: Color(0xFF7AA9FF),
     good: Color(0xFF4CAF80),
     moderate: Color(0xFFFFB74D),
     weak: Color(0xFFFF8A65),
     none: Color(0xFF78909C),
     sos: Color(0xFFEF5350),
-    border: Color(0xFF2C3A36),
-    glass: Color(0xFF1A2421),
-    primaryContainer: Color(0xFF004D44),
-    onPrimaryContainer: Color(0xFF80CBC4),
-    secondaryContainer: Color(0xFF1E3832),
-    onSecondaryContainer: Color(0xFFB2DFDB),
+    border: Color(0xFF2A3445),
+    glass: Color(0xFF171E29),
+    primaryContainer: Color(0xFF1C3A7A),
+    onPrimaryContainer: Color(0xFFD5E2FF),
+    secondaryContainer: Color(0xFF1E2A42),
+    onSecondaryContainer: Color(0xFFD6E1FB),
     errorContainer: Color(0xFF6E1A17),
     onErrorContainer: Color(0xFFFFCDD2),
     warningContainer: Color(0xFF4A2D00),
     onWarningContainer: Color(0xFFFFE0B2),
     successContainer: Color(0xFF0D3320),
     onSuccessContainer: Color(0xFFA5D6A7),
-    outline: Color(0xFF4A6560),
+    outline: Color(0xFF4E5B72),
     destination: Color(0xFFFF7043),
   );
 
   static const light = SignalPalette(
-    ink: Color(0xFFF5F8F7),
+    ink: Color(0xFFF4F6FA),
     surface: Color(0xFFFFFFFF),
-    elevated: Color(0xFFECF2F0),
-    text: Color(0xFF0D1B18),
-    muted: Color(0xFF4D6560),
-    beacon: Color(0xFF00897B),
-    route: Color(0xFF00897B),
+    elevated: Color(0xFFEDF1F7),
+    text: Color(0xFF101828),
+    muted: Color(0xFF566174),
+    beacon: Color(0xFF1F5BD6),
+    route: Color(0xFF2563EB),
     good: Color(0xFF2E7D32),
     moderate: Color(0xFFE65100),
     weak: Color(0xFFBF360C),
     none: Color(0xFF455A64),
     sos: Color(0xFFC62828),
-    border: Color(0xFFD0DCDA),
+    border: Color(0xFFD7DDE7),
     glass: Color(0xFFFFFFFF),
-    primaryContainer: Color(0xFFB2DFDB),
-    onPrimaryContainer: Color(0xFF00251F),
-    secondaryContainer: Color(0xFFCCE8E4),
-    onSecondaryContainer: Color(0xFF002019),
+    primaryContainer: Color(0xFFDCE6FF),
+    onPrimaryContainer: Color(0xFF0A2366),
+    secondaryContainer: Color(0xFFE4EBFA),
+    onSecondaryContainer: Color(0xFF0E2250),
     errorContainer: Color(0xFFFFCDD2),
     onErrorContainer: Color(0xFF4E0000),
     warningContainer: Color(0xFFFFE0B2),
     onWarningContainer: Color(0xFF3E1E00),
     successContainer: Color(0xFFC8E6C9),
     onSuccessContainer: Color(0xFF0A2E10),
-    outline: Color(0xFF5C7570),
+    outline: Color(0xFF677289),
     destination: Color(0xFFE53935),
   );
 
@@ -214,9 +214,11 @@ class AppTheme {
         scrolledUnderElevation: 0,
         centerTitle: false,
         surfaceTintColor: Colors.transparent,
-        titleTextStyle: textTheme.titleLarge?.copyWith(
+        titleTextStyle: textTheme.headlineSmall?.copyWith(
           color: pal.text,
-          fontWeight: FontWeight.w700,
+          fontWeight: FontWeight.w500,
+          fontSize: 24,
+          letterSpacing: -0.3,
         ),
       ),
       navigationBarTheme: NavigationBarThemeData(
@@ -248,31 +250,39 @@ class AppTheme {
           ),
         ),
       ),
+      // One filled pill per surface (the primary action). Everything else is
+      // a light tonal pill with no border, so only one thing shouts.
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          minimumSize: const Size(48, 48),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
+          minimumSize: const Size(48, 44),
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          shape: const StadiumBorder(),
+          textStyle: textTheme.labelLarge?.copyWith(
+            fontWeight: FontWeight.w700,
+            fontSize: 14,
           ),
-          textStyle: textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w700),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          minimumSize: const Size(48, 48),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
+          minimumSize: const Size(48, 44),
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          shape: const StadiumBorder(),
+          backgroundColor: pal.secondaryContainer,
+          foregroundColor: brightness == Brightness.dark
+              ? pal.onSecondaryContainer
+              : const Color(0xFF143E9C),
+          side: BorderSide.none,
+          textStyle: textTheme.labelLarge?.copyWith(
+            fontWeight: FontWeight.w600,
+            fontSize: 14,
           ),
-          side: BorderSide(color: pal.outline),
-          textStyle: textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600),
         ),
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-          minimumSize: const Size(48, 48),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
+          minimumSize: const Size(48, 44),
+          shape: const StadiumBorder(),
           textStyle: textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600),
         ),
       ),
@@ -310,7 +320,6 @@ class AppTheme {
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
-          side: BorderSide(color: pal.border),
         ),
       ),
       chipTheme: base.chipTheme.copyWith(
@@ -360,4 +369,38 @@ TextStyle dataStyle(
     fontWeight: weight ?? FontWeight.w600,
     color: context.palette.text,
   );
+}
+
+/// Night palette used by turn-by-turn navigation, whatever the app theme is.
+/// Deep navy instead of black so the map still reads as a map.
+abstract final class NavPalette {
+  static const night = Color(0xFF0B1626);
+  static const surface = Color(0xFF13233A);
+  static const raised = Color(0xFF1B2F4B);
+  static const text = Color(0xFFE8F0FA);
+  static const muted = Color(0xFF93A7C1);
+  static const route = Color(0xFF7DB0FF);
+  static const routeCasing = Color(0xFF123A80);
+  static const instruction = Color(0xFF1F5BD6);
+  static const instructionDeep = Color(0xFF16449F);
+  static const warning = Color(0xFFFFB547);
+  static const warningSurface = Color(0xFF3A2A10);
+  static const good = Color(0xFF5FD89A);
+}
+
+/// Soft, short shadow used for floating chrome over the map.
+List<BoxShadow> softShadow(BuildContext context, {double strength = 1}) {
+  final dark = Theme.of(context).brightness == Brightness.dark;
+  return [
+    BoxShadow(
+      color: Colors.black.withValues(alpha: (dark ? 0.4 : 0.12) * strength),
+      blurRadius: 8,
+      offset: const Offset(0, 2),
+    ),
+    BoxShadow(
+      color: Colors.black.withValues(alpha: (dark ? 0.2 : 0.05) * strength),
+      blurRadius: 2,
+      offset: const Offset(0, 1),
+    ),
+  ];
 }
