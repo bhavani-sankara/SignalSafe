@@ -1,11 +1,9 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
 import 'package:phosphor_icons/phosphor_icons.dart';
 
 import '../../theme/app_theme.dart';
+import '../../theme/motion.dart';
 
 class AppShell extends StatelessWidget {
   const AppShell({super.key, required this.shell});
@@ -102,7 +100,7 @@ class AppShell extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Floating frosted-glass pill navigation bar
+// Floating pill navigation bar with a sliding tonal indicator
 // ---------------------------------------------------------------------------
 
 class _FloatingNav extends StatelessWidget {
@@ -115,64 +113,71 @@ class _FloatingNav extends StatelessWidget {
   final int currentIndex;
   final ValueChanged<int> onTap;
   final List<({String label, IconData icon, IconData selectedIcon})>
-      destinations;
+  destinations;
 
   @override
   Widget build(BuildContext context) {
     final pal = context.palette;
     final dark = Theme.of(context).brightness == Brightness.dark;
     final bottomPad = MediaQuery.of(context).padding.bottom;
+    final duration = Motion.of(context, const Duration(milliseconds: 280));
 
     return Padding(
-      padding: EdgeInsets.fromLTRB(16, 0, 16, (bottomPad + 12).clamp(16.0, 48.0)),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(28),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
-          child: Container(
-            height: 64,
-            decoration: BoxDecoration(
-              color: dark
-                  ? pal.elevated.withValues(alpha: 0.92)
-                  : pal.surface.withValues(alpha: 0.94),
-              borderRadius: BorderRadius.circular(28),
-              border: Border.all(
-                color: dark
-                    ? pal.border.withValues(alpha: 0.6)
-                    : pal.border.withValues(alpha: 0.8),
-                width: 1,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: dark ? 0.35 : 0.12),
-                  blurRadius: 24,
-                  offset: const Offset(0, 8),
-                ),
-              ],
-            ),
-            child: Row(
+      padding: EdgeInsets.fromLTRB(
+        12,
+        0,
+        12,
+        (bottomPad + 8).clamp(12.0, 44.0),
+      ),
+      child: Container(
+        height: 66,
+        decoration: BoxDecoration(
+          color: dark ? pal.elevated : pal.surface,
+          borderRadius: BorderRadius.circular(33),
+          border: dark ? Border.all(color: pal.border) : null,
+          boxShadow: softShadow(context, strength: 1.4),
+        ),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final itemWidth = constraints.maxWidth / destinations.length;
+            const pillWidth = 56.0;
+            return Stack(
               children: [
-                for (var i = 0; i < destinations.length; i++)
-                  Expanded(
-                    child: _NavItem(
-                      label: destinations[i].label,
-                      icon: destinations[i].icon,
-                      selectedIcon: destinations[i].selectedIcon,
-                      selected: currentIndex == i,
-                      onTap: () => onTap(i),
+                // The tonal pill slides to the active tab.
+                AnimatedPositioned(
+                  duration: duration,
+                  curve: Motion.enter,
+                  left: itemWidth * currentIndex + (itemWidth - pillWidth) / 2,
+                  top: 9,
+                  width: pillWidth,
+                  height: 30,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: pal.secondaryContainer,
+                      borderRadius: BorderRadius.circular(15),
                     ),
                   ),
+                ),
+                Row(
+                  children: [
+                    for (var i = 0; i < destinations.length; i++)
+                      Expanded(
+                        child: _NavItem(
+                          label: destinations[i].label,
+                          icon: destinations[i].icon,
+                          selectedIcon: destinations[i].selectedIcon,
+                          selected: currentIndex == i,
+                          onTap: () => onTap(i),
+                        ),
+                      ),
+                  ],
+                ),
               ],
-            ),
-          ),
+            );
+          },
         ),
       ),
-    ).animate().fadeIn(duration: 400.ms, delay: 100.ms).slideY(
-          begin: 0.3,
-          end: 0,
-          duration: 500.ms,
-          curve: Curves.easeOutCubic,
-        );
+    );
   }
 }
 
@@ -194,59 +199,47 @@ class _NavItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final pal = context.palette;
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final active = dark ? pal.onSecondaryContainer : const Color(0xFF00574F);
 
     return Semantics(
       selected: selected,
       label: label,
       button: true,
+      excludeSemantics: true,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          curve: Curves.easeOut,
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              AnimatedSwitcher(
-                duration: const Duration(milliseconds: 180),
-                switchInCurve: Curves.easeOut,
-                switchOutCurve: Curves.easeIn,
-                transitionBuilder: (child, animation) => ScaleTransition(
-                  scale: animation,
-                  child: child,
-                ),
-                child: Icon(
-                  selected ? selectedIcon : icon,
-                  key: ValueKey(selected),
-                  size: 22,
-                  color: selected ? pal.beacon : pal.muted,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            SizedBox(
+              height: 30,
+              child: Center(
+                child: AnimatedSwitcher(
+                  duration: Motion.quick,
+                  switchInCurve: Motion.enter,
+                  child: Icon(
+                    selected ? selectedIcon : icon,
+                    key: ValueKey(selected),
+                    size: 21,
+                    color: selected ? active : pal.muted,
+                  ),
                 ),
               ),
-              const SizedBox(height: 3),
-              AnimatedDefaultTextStyle(
-                duration: const Duration(milliseconds: 200),
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight:
-                      selected ? FontWeight.w700 : FontWeight.w500,
-                  color: selected ? pal.beacon : pal.muted,
-                ),
-                child: Text(label),
+            ),
+            const SizedBox(height: 3),
+            AnimatedDefaultTextStyle(
+              duration: Motion.quick,
+              style: TextStyle(
+                fontFamily: Theme.of(context).textTheme.labelSmall?.fontFamily,
+                fontSize: 11,
+                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                color: selected ? pal.text : pal.muted,
               ),
-              const SizedBox(height: 2),
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 250),
-                curve: Curves.easeOut,
-                width: selected ? 18 : 0,
-                height: 3,
-                decoration: BoxDecoration(
-                  color: pal.beacon,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ],
-          ),
+              child: Text(label, maxLines: 1),
+            ),
+          ],
         ),
       ),
     );

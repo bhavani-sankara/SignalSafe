@@ -48,13 +48,15 @@ class Glass extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final pal = context.palette;
+    final dark = Theme.of(context).brightness == Brightness.dark;
     return Material(
       color: color ?? pal.surface,
       elevation: elevation,
       shadowColor: Colors.black.withValues(alpha: 0.08),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(radius),
-        side: BorderSide(color: pal.border),
+        // Borders only in dark mode, where surfaces need separating.
+        side: dark ? BorderSide(color: pal.border) : BorderSide.none,
       ),
       clipBehavior: Clip.antiAlias,
       child: Padding(padding: padding, child: child),
@@ -396,18 +398,22 @@ class RoundIconButton extends StatelessWidget {
 
     return Tooltip(
       message: tooltip ?? '',
-      child: Material(
-        color: bg,
-        elevation: selected || sos ? 0 : 3,
-        shadowColor: Colors.black.withValues(alpha: 0.18),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: onTap,
-          child: SizedBox(
-            width: size,
-            height: size,
-            child: Icon(icon, color: fg, size: 20),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          boxShadow: selected || sos ? null : softShadow(context),
+        ),
+        child: Material(
+          color: bg,
+          shape: const CircleBorder(),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: onTap,
+            child: SizedBox(
+              width: size,
+              height: size,
+              child: Icon(icon, color: fg, size: 20),
+            ),
           ),
         ),
       ),

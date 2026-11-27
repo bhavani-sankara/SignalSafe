@@ -248,31 +248,39 @@ class AppTheme {
           ),
         ),
       ),
+      // One filled pill per surface (the primary action). Everything else is
+      // a light tonal pill with no border, so only one thing shouts.
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          minimumSize: const Size(48, 48),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
+          minimumSize: const Size(48, 44),
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          shape: const StadiumBorder(),
+          textStyle: textTheme.labelLarge?.copyWith(
+            fontWeight: FontWeight.w700,
+            fontSize: 14,
           ),
-          textStyle: textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w700),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          minimumSize: const Size(48, 48),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
+          minimumSize: const Size(48, 44),
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          shape: const StadiumBorder(),
+          backgroundColor: pal.secondaryContainer,
+          foregroundColor: brightness == Brightness.dark
+              ? pal.onSecondaryContainer
+              : const Color(0xFF00574F),
+          side: BorderSide.none,
+          textStyle: textTheme.labelLarge?.copyWith(
+            fontWeight: FontWeight.w600,
+            fontSize: 14,
           ),
-          side: BorderSide(color: pal.outline),
-          textStyle: textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600),
         ),
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-          minimumSize: const Size(48, 48),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
+          minimumSize: const Size(48, 44),
+          shape: const StadiumBorder(),
           textStyle: textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600),
         ),
       ),
@@ -310,7 +318,6 @@ class AppTheme {
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
-          side: BorderSide(color: pal.border),
         ),
       ),
       chipTheme: base.chipTheme.copyWith(
@@ -360,4 +367,38 @@ TextStyle dataStyle(
     fontWeight: weight ?? FontWeight.w600,
     color: context.palette.text,
   );
+}
+
+/// Night palette used by turn-by-turn navigation, whatever the app theme is.
+/// Deep navy instead of black so the map still reads as a map.
+abstract final class NavPalette {
+  static const night = Color(0xFF0B1626);
+  static const surface = Color(0xFF13233A);
+  static const raised = Color(0xFF1B2F4B);
+  static const text = Color(0xFFE8F0FA);
+  static const muted = Color(0xFF93A7C1);
+  static const route = Color(0xFF5EE6D3);
+  static const routeCasing = Color(0xFF0D4F55);
+  static const instruction = Color(0xFF0E7C70);
+  static const instructionDeep = Color(0xFF0A5F56);
+  static const warning = Color(0xFFFFB547);
+  static const warningSurface = Color(0xFF3A2A10);
+  static const good = Color(0xFF5FD89A);
+}
+
+/// Soft, short shadow used for floating chrome over the map.
+List<BoxShadow> softShadow(BuildContext context, {double strength = 1}) {
+  final dark = Theme.of(context).brightness == Brightness.dark;
+  return [
+    BoxShadow(
+      color: Colors.black.withValues(alpha: (dark ? 0.4 : 0.12) * strength),
+      blurRadius: 8,
+      offset: const Offset(0, 2),
+    ),
+    BoxShadow(
+      color: Colors.black.withValues(alpha: (dark ? 0.2 : 0.05) * strength),
+      blurRadius: 2,
+      offset: const Offset(0, 1),
+    ),
+  ];
 }
