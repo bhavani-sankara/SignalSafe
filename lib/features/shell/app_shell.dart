@@ -200,7 +200,7 @@ class _NavItem extends StatelessWidget {
   Widget build(BuildContext context) {
     final pal = context.palette;
     final dark = Theme.of(context).brightness == Brightness.dark;
-    final active = dark ? pal.onSecondaryContainer : const Color(0xFF00574F);
+    final active = dark ? pal.onSecondaryContainer : const Color(0xFF143E9C);
 
     return Semantics(
       selected: selected,

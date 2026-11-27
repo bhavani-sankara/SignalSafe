@@ -41,7 +41,7 @@ Color operatorColor(String op) => switch (op) {
   'airtel' => const Color(0xFFD22F27),
   'vi' => const Color(0xFF7A3EAE),
   'bsnl' => const Color(0xFFC08A00),
-  _ => const Color(0xFF00897B),
+  _ => const Color(0xFF1F5BD6),
 };
 
 /// Soft background tint for a place category card (peach, lavender, …).
@@ -54,7 +54,7 @@ Color categoryTint(String category, bool dark) {
       'hotel' => const Color(0xFF2C2140),
       'restaurant' => const Color(0xFF35281C),
       'recovery' => const Color(0xFF15302A),
-      _ => const Color(0xFF1E2825),
+      _ => const Color(0xFF1E2430),
     };
   }
   return switch (category) {
@@ -64,7 +64,7 @@ Color categoryTint(String category, bool dark) {
     'hotel' => const Color(0xFFF1EAFB),
     'restaurant' => const Color(0xFFFCEFE6),
     'recovery' => const Color(0xFFE3F4EF),
-    _ => const Color(0xFFF0F4F3),
+    _ => const Color(0xFFF0F3F8),
   };
 }
 

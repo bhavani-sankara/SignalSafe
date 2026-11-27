@@ -989,6 +989,11 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen>
         TileLayer(
           urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
           userAgentPackageName: 'com.signalsafe.app',
+          keepBuffer: 5,
+          panBuffer: 2,
+          tileDisplay: const TileDisplay.fadeIn(
+            duration: Duration(milliseconds: 220),
+          ),
           tileBuilder: _nightTile,
         ),
         PolylineLayer(

@@ -34,28 +34,42 @@ class ExploreHeader extends StatelessWidget {
     final level = session.route.segments.first.levelFor(
       session.preferredOperator,
     );
+    final city = session.origin.name.contains(',')
+        ? session.origin.name.split(',').last.trim()
+        : 'Your area';
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 0, 12, 8),
+      padding: const EdgeInsets.fromLTRB(20, 2, 12, 14),
       child: Row(
         children: [
           Expanded(
-            child: Text(
-              area,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.w500,
-                letterSpacing: -0.3,
-                color: pal.text,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  area,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 22,
+                    height: 1.15,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: -0.4,
+                    color: pal.text,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '$city · signal checked just now',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 13, color: pal.muted),
+                ),
+              ],
             ),
           ),
-          SignalChip(
-            level: level,
-            label: '${operatorLabel(session.preferredOperator)} · '
-                '${level == 'good' ? 'Strong' : level == 'moderate' ? 'Fair' : 'Weak'}',
-          ),
+          const SizedBox(width: 12),
+          _AreaSignal(operator: session.preferredOperator, level: level),
           // Collapse control appears as the sheet becomes the full screen.
           AnimatedSize(
             duration: Motion.quick,
@@ -135,7 +149,7 @@ class ExploreBody extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 24),
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
           child: _ContinueCard(
             session: session,
             onDirections: onDirections,
@@ -176,6 +190,66 @@ class ExploreBody extends StatelessWidget {
   }
 }
 
+/// Quiet signal readout for the header: mini bars, network, strength.
+class _AreaSignal extends StatelessWidget {
+  const _AreaSignal({required this.operator, required this.level});
+
+  final String operator;
+  final String level;
+
+  @override
+  Widget build(BuildContext context) {
+    final pal = context.palette;
+    final word = switch (level) {
+      'good' => 'Strong',
+      'moderate' => 'Fair',
+      'weak' => 'Weak',
+      _ => 'No signal',
+    };
+    return Semantics(
+      label: '${operatorLabel(operator)} signal here: $word',
+      child: ExcludeSemantics(
+        child: Container(
+          height: 34,
+          padding: const EdgeInsets.fromLTRB(10, 0, 12, 0),
+          decoration: BoxDecoration(
+            color: pal.elevated,
+            borderRadius: BorderRadius.circular(17),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(
+                width: 16,
+                height: 16,
+                child: FittedBox(child: SignalBars(level: level)),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                operatorLabel(operator),
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: pal.text,
+                ),
+              ),
+              const SizedBox(width: 5),
+              Text(
+                word,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: pal.level(level),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _ContinueCard extends StatelessWidget {
   const _ContinueCard({
     required this.session,
@@ -194,54 +268,141 @@ class _ContinueCard extends StatelessWidget {
     final route = session.route;
     final low = lowSignalMinutes(route, session.operatorFilter);
     return Container(
-      padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
       decoration: BoxDecoration(
-        color: dark ? pal.secondaryContainer : const Color(0xFFE6F4F1),
-        borderRadius: BorderRadius.circular(22),
+        color: dark ? pal.secondaryContainer : const Color(0xFFF1F5FE),
+        borderRadius: BorderRadius.circular(24),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'PICK UP WHERE YOU LEFT OFF',
-            style: TextStyle(
-              fontSize: 11,
-              letterSpacing: 0.8,
-              fontWeight: FontWeight.w700,
-              color: pal.beacon,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            '${session.origin.name.split(',').first} to ${session.destination.name}',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-              color: pal.text,
-            ),
-          ),
-          const SizedBox(height: 4),
-          MetaLine([
-            formatDuration(route.durationMin),
-            '${route.distanceKm.toStringAsFixed(0)} km',
-            if (low > 0) '$low min low signal',
-          ]),
-          const SizedBox(height: 12),
-          SignalCoverageBar(
-            stats: route.stats[session.operatorFilter] ?? route.stats['all']!,
-            height: 6,
+          Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: pal.beacon,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  PhosphorIconsFill.clockCounterClockwise,
+                  size: 20,
+                  color: dark ? pal.ink : Colors.white,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Continue your trip',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: pal.beacon,
+                      ),
+                    ),
+                    const SizedBox(height: 1),
+                    Text(
+                      '${session.origin.name.split(',').first} to ${session.destination.name}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 17,
+                        height: 1.25,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: -0.2,
+                        color: pal.text,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 14),
           Wrap(
-            spacing: 8,
-            runSpacing: 4,
+            spacing: 10,
+            runSpacing: 6,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              FilledButton.icon(
-                onPressed: onDirections,
-                icon: const Icon(PhosphorIconsFill.arrowBendUpRight, size: 18),
-                label: const Text('Directions'),
+              Text.rich(
+                TextSpan(
+                  children: [
+                    TextSpan(
+                      text: formatDuration(route.durationMin),
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        color: pal.text,
+                      ),
+                    ),
+                    TextSpan(
+                      text: '  ·  ${route.distanceKm.toStringAsFixed(0)} km',
+                    ),
+                  ],
+                ),
+                style: TextStyle(fontSize: 14, color: pal.muted),
               ),
-              TextButton(onPressed: onDetails, child: const Text('Trip details')),
+              if (low > 0)
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      PhosphorIconsBold.cellSignalSlash,
+                      size: 14,
+                      color: pal.moderate,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      '$low min low signal',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: pal.moderate,
+                      ),
+                    ),
+                  ],
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          SignalCoverageBar(
+            stats: route.stats[session.operatorFilter] ?? route.stats['all']!,
+            height: 8,
+            showLegend: true,
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: FilledButton.icon(
+                  onPressed: onDirections,
+                  icon: const Icon(PhosphorIconsFill.arrowBendUpRight, size: 18),
+                  label: const Text(
+                    'Directions',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: onDetails,
+                  style: dark
+                      ? null
+                      : OutlinedButton.styleFrom(
+                          backgroundColor: Colors.white,
+                        ),
+                  child: const Text(
+                    'Trip details',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ),
             ],
           ),
         ],

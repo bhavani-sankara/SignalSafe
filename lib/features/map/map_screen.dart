@@ -325,6 +325,11 @@ class _MapScreenState extends ConsumerState<MapScreen>
       options: MapOptions(
         initialCenter: session.here,
         initialZoom: directions ? 8.4 : 11.5,
+        // Land-coloured backdrop so tiles that are still downloading read
+        // as quiet map instead of grey holes.
+        backgroundColor: Theme.of(context).brightness == Brightness.dark
+            ? const Color(0xFF1B2029)
+            : const Color(0xFFECEAE4),
         onMapReady: () {
           if (directions) _fitRoutes(session);
         },
@@ -337,6 +342,13 @@ class _MapScreenState extends ConsumerState<MapScreen>
         TileLayer(
           urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
           userAgentPackageName: 'com.signalsafe.app',
+          // Keep more already-loaded tiles around (and fetch a ring past the
+          // viewport) so camera glides land on painted map, not blanks.
+          keepBuffer: 5,
+          panBuffer: 2,
+          tileDisplay: const TileDisplay.fadeIn(
+            duration: Duration(milliseconds: 220),
+          ),
           tileBuilder: Theme.of(context).brightness == Brightness.dark
               ? darkModeTileBuilder
               : _calmTileBuilder,

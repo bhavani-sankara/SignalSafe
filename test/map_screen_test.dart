@@ -96,7 +96,7 @@ void main() {
     await _pumpMap(tester);
     final sheet = tester.state(find.byType(SpringSheet));
     expect(sheet, isNotNull);
-    await tester.fling(find.text('Signal around you'), const Offset(0, -300), 1500);
+    await tester.fling(find.text('Continue your trip'), const Offset(0, -300), 1500);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 700));
     expect(find.byTooltip('Show map'), findsOneWidget);

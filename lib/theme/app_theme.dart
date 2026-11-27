@@ -59,60 +59,60 @@ class SignalPalette {
   final Color destination;
 
   static const dark = SignalPalette(
-    ink: Color(0xFF0E1512),
-    surface: Color(0xFF151D1A),
-    elevated: Color(0xFF1E2825),
-    text: Color(0xFFE2E8E5),
-    muted: Color(0xFF8FA39E),
-    beacon: Color(0xFF4DB6A8),
-    route: Color(0xFF4DB6A8),
+    ink: Color(0xFF0C1017),
+    surface: Color(0xFF131922),
+    elevated: Color(0xFF1B232F),
+    text: Color(0xFFE4E9F1),
+    muted: Color(0xFF95A1B5),
+    beacon: Color(0xFF8AB4FF),
+    route: Color(0xFF7AA9FF),
     good: Color(0xFF4CAF80),
     moderate: Color(0xFFFFB74D),
     weak: Color(0xFFFF8A65),
     none: Color(0xFF78909C),
     sos: Color(0xFFEF5350),
-    border: Color(0xFF2C3A36),
-    glass: Color(0xFF1A2421),
-    primaryContainer: Color(0xFF004D44),
-    onPrimaryContainer: Color(0xFF80CBC4),
-    secondaryContainer: Color(0xFF1E3832),
-    onSecondaryContainer: Color(0xFFB2DFDB),
+    border: Color(0xFF2A3445),
+    glass: Color(0xFF171E29),
+    primaryContainer: Color(0xFF1C3A7A),
+    onPrimaryContainer: Color(0xFFD5E2FF),
+    secondaryContainer: Color(0xFF1E2A42),
+    onSecondaryContainer: Color(0xFFD6E1FB),
     errorContainer: Color(0xFF6E1A17),
     onErrorContainer: Color(0xFFFFCDD2),
     warningContainer: Color(0xFF4A2D00),
     onWarningContainer: Color(0xFFFFE0B2),
     successContainer: Color(0xFF0D3320),
     onSuccessContainer: Color(0xFFA5D6A7),
-    outline: Color(0xFF4A6560),
+    outline: Color(0xFF4E5B72),
     destination: Color(0xFFFF7043),
   );
 
   static const light = SignalPalette(
-    ink: Color(0xFFF5F8F7),
+    ink: Color(0xFFF4F6FA),
     surface: Color(0xFFFFFFFF),
-    elevated: Color(0xFFECF2F0),
-    text: Color(0xFF0D1B18),
-    muted: Color(0xFF4D6560),
-    beacon: Color(0xFF00897B),
-    route: Color(0xFF00897B),
+    elevated: Color(0xFFEDF1F7),
+    text: Color(0xFF101828),
+    muted: Color(0xFF566174),
+    beacon: Color(0xFF1F5BD6),
+    route: Color(0xFF2563EB),
     good: Color(0xFF2E7D32),
     moderate: Color(0xFFE65100),
     weak: Color(0xFFBF360C),
     none: Color(0xFF455A64),
     sos: Color(0xFFC62828),
-    border: Color(0xFFD0DCDA),
+    border: Color(0xFFD7DDE7),
     glass: Color(0xFFFFFFFF),
-    primaryContainer: Color(0xFFB2DFDB),
-    onPrimaryContainer: Color(0xFF00251F),
-    secondaryContainer: Color(0xFFCCE8E4),
-    onSecondaryContainer: Color(0xFF002019),
+    primaryContainer: Color(0xFFDCE6FF),
+    onPrimaryContainer: Color(0xFF0A2366),
+    secondaryContainer: Color(0xFFE4EBFA),
+    onSecondaryContainer: Color(0xFF0E2250),
     errorContainer: Color(0xFFFFCDD2),
     onErrorContainer: Color(0xFF4E0000),
     warningContainer: Color(0xFFFFE0B2),
     onWarningContainer: Color(0xFF3E1E00),
     successContainer: Color(0xFFC8E6C9),
     onSuccessContainer: Color(0xFF0A2E10),
-    outline: Color(0xFF5C7570),
+    outline: Color(0xFF677289),
     destination: Color(0xFFE53935),
   );
 
@@ -271,7 +271,7 @@ class AppTheme {
           backgroundColor: pal.secondaryContainer,
           foregroundColor: brightness == Brightness.dark
               ? pal.onSecondaryContainer
-              : const Color(0xFF00574F),
+              : const Color(0xFF143E9C),
           side: BorderSide.none,
           textStyle: textTheme.labelLarge?.copyWith(
             fontWeight: FontWeight.w600,
@@ -379,10 +379,10 @@ abstract final class NavPalette {
   static const raised = Color(0xFF1B2F4B);
   static const text = Color(0xFFE8F0FA);
   static const muted = Color(0xFF93A7C1);
-  static const route = Color(0xFF5EE6D3);
-  static const routeCasing = Color(0xFF0D4F55);
-  static const instruction = Color(0xFF0E7C70);
-  static const instructionDeep = Color(0xFF0A5F56);
+  static const route = Color(0xFF7DB0FF);
+  static const routeCasing = Color(0xFF123A80);
+  static const instruction = Color(0xFF1F5BD6);
+  static const instructionDeep = Color(0xFF16449F);
   static const warning = Color(0xFFFFB547);
   static const warningSurface = Color(0xFF3A2A10);
   static const good = Color(0xFF5FD89A);
