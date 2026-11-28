@@ -200,7 +200,10 @@ class AppTheme {
       labelLarge: dm(13, FontWeight.w600, letterSpacing: 0.1),
       labelMedium: dm(12, FontWeight.w500),
       labelSmall: dm(11, FontWeight.w500, letterSpacing: 0.3),
-    );
+    // Every style gets an explicit colour for this theme. Without it, text
+    // that doesn't set its own colour falls back to whatever the platform
+    // default is, which on some phones is white on our white surfaces.
+    ).apply(bodyColor: pal.text, displayColor: pal.text);
 
     return base.copyWith(
       scaffoldBackgroundColor: pal.ink,
