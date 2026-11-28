@@ -49,7 +49,9 @@ class ExploreHeader extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  area,
+                  // Pulled all the way up, the sheet is about your area's
+                  // signal rather than the place name (Google's "Local vibe").
+                  expansion > 0.6 ? 'Signal near you' : area,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
@@ -148,48 +150,128 @@ class ExploreBody extends StatelessWidget {
         .take(3)
         .toList();
 
+    final op = _cardOp(session);
+    final hasTrip = session.trips.isNotEmpty;
+    final ready = session.trips.any(
+      (t) => t.routeId == session.route.id && t.offlinePrepared,
+    );
+
     return ListView(
       controller: scroll,
       physics: physics,
       padding: const EdgeInsets.only(bottom: 24),
       children: [
+        // 1. The assistant first, like "Make plans with Ask Maps".
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 2, 16, 12),
+          padding: const EdgeInsets.fromLTRB(16, 2, 16, 0),
           child: _PlanCard(
             session: session,
             onRoute: onDirections,
             onCoverage: onTripDetails,
           ),
         ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
-          child: _ContinueCard(
-            session: session,
-            onDirections: onDirections,
-            onDetails: onTripDetails,
-          ),
-        ),
+        // 2. The one thing the app should always answer.
         const SheetSectionTitle(
-          'Signal around you',
-          subtitle: 'Nearest towers and where coverage comes back',
+          'Signal right here',
+          subtitle: 'Estimated for where you are now',
         ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: _NetworkTiles(session: session),
+        ),
+        // 3. Your trip, or a nudge to plan one.
+        SheetSectionTitle(hasTrip ? 'Your trip' : 'Plan a trip'),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: hasTrip
+              ? _ContinueCard(
+                  session: session,
+                  onDirections: onDirections,
+                  onDetails: onTripDetails,
+                )
+              : _FirstTripCard(onSearch: onDirections),
+        ),
+        // 4. Heads-up: dead zones on the trip, else weak areas nearby.
+        SheetSectionTitle(
+          hasTrip ? 'Heads-up on your route' : 'Weak-signal areas near you',
+          subtitle: hasTrip
+              ? 'Where ${operatorLabel(op)} drops on the way'
+              : 'Within reach of ${session.origin.name.split(',').first}',
+        ),
+        if (hasTrip)
+          for (final s in session.route.segments.where(
+            (s) => s.levelFor(op) == 'none' || s.levelFor(op) == 'weak',
+          ))
+            _HeadsUpRow(
+              title: s.label,
+              subtitle:
+                  '${s.km.round()} km  ·  ${formatDuration(s.min)} '
+                  '${s.levelFor(op) == 'none' ? 'no signal' : 'weak signal'}',
+              none: s.levelFor(op) == 'none',
+              onTap: onTripDetails,
+            )
+        else
+          for (final b in session.catalog.blackspots.take(3))
+            _HeadsUpRow(
+              title: b.name,
+              subtitle:
+                  '${(distance(here, b.points.first) / 1000).round()} km away  ·  '
+                  '${b.durationMin} min with no signal',
+              none: true,
+              onTap: onDirections,
+            ),
+        // 5. Towers, and where coverage comes back.
+        const SheetSectionTitle('Towers near you'),
         _Carousel(
           height: 132,
           children: [
-            for (final t in towers.take(4))
+            for (final t in towers.take(5))
               _TowerCard(
                 tower: t,
                 km: distance(here, t.point) / 1000,
                 onTap: () => onTower(t),
               ),
-            for (final p in recoveries.take(3))
-              _PlaceCard(place: p, onTap: () => onPlace(p)),
           ],
         ),
         const SheetSectionTitle(
-          'Essentials on the way',
-          subtitle: 'Help points along NH 765',
+          'Where signal comes back',
+          subtitle: 'Recovery points after weak stretches',
         ),
+        _Carousel(
+          height: 132,
+          children: [
+            for (final p in recoveries)
+              _PlaceCard(place: p, onTap: () => onPlace(p)),
+          ],
+        ),
+        // 6. A quick pre-drive check.
+        const SheetSectionTitle('Ready to drive?'),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: _ReadyCard(
+            items: [
+              (
+                ready,
+                ready ? 'Offline route saved' : 'Save your route for offline',
+              ),
+              (
+                session.contacts.isNotEmpty,
+                session.contacts.isNotEmpty
+                    ? '${session.contacts.length} SOS contacts set'
+                    : 'Add an SOS contact',
+              ),
+              (true, 'Signal checked just now'),
+            ],
+          ),
+        ),
+        // 7. Community.
+        const SheetSectionTitle('From the community'),
+        for (final r in reports) _ReportRow(report: r, onTap: () => onReport(r)),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+          child: SeeAllPill(label: 'See all reports', onTap: onSeeCommunity),
+        ),
+        const SheetSectionTitle('Help points nearby'),
         _Carousel(
           height: 132,
           children: [
@@ -197,14 +279,304 @@ class ExploreBody extends StatelessWidget {
               _PlaceCard(place: p, onTap: () => onPlace(p)),
           ],
         ),
-        const SheetSectionTitle('From the community'),
-        for (final r in reports)
-          _ReportRow(report: r, onTap: () => onReport(r)),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-          child: SeeAllPill(label: 'See all reports', onTap: onSeeCommunity),
-        ),
       ],
+    );
+  }
+}
+
+/// The network the explore cards talk about: the filter, or your own
+/// network when the filter is "all".
+String _cardOp(Session s) =>
+    s.operatorFilter == 'all' ? s.preferredOperator : s.operatorFilter;
+
+class _BandLegend extends StatelessWidget {
+  const _BandLegend({required this.stats});
+
+  final Map<String, int> stats;
+
+  @override
+  Widget build(BuildContext context) {
+    final pal = context.palette;
+    const levels = [
+      ('good', SignalBand.strong, 'strong'),
+      ('moderate', SignalBand.fair, 'fair'),
+      ('weak', SignalBand.weak, 'weak'),
+      ('none', SignalBand.none, 'none'),
+    ];
+    return Wrap(
+      spacing: 12,
+      runSpacing: 4,
+      children: [
+        for (final (key, band, word) in levels)
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  color: band.color(context),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(width: 5),
+              Text.rich(
+                TextSpan(
+                  children: [
+                    TextSpan(
+                      text: '${stats[key] ?? 0}%',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        color: pal.text,
+                      ),
+                    ),
+                    TextSpan(text: ' $word'),
+                  ],
+                ),
+                style: TextStyle(fontSize: 12.5, color: pal.muted),
+              ),
+            ],
+          ),
+      ],
+    );
+  }
+}
+
+/// Four small tiles: signal on each network where you're standing.
+class _NetworkTiles extends StatelessWidget {
+  const _NetworkTiles({required this.session});
+
+  final Session session;
+
+  @override
+  Widget build(BuildContext context) {
+    final pal = context.palette;
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final here = session.route.segments.first;
+    return Row(
+      children: [
+        for (final op in NetworkTabs.ops) ...[
+          if (op != NetworkTabs.ops.first) const SizedBox(width: 8),
+          Expanded(
+            child: Builder(
+              builder: (context) {
+                final level = here.levelFor(op);
+                final word = switch (level) {
+                  'good' => 'Strong',
+                  'moderate' => 'Fair',
+                  'weak' => 'Weak',
+                  _ => 'None',
+                };
+                final mine = op == session.preferredOperator;
+                return Semantics(
+                  label: '${operatorLabel(op)}: $word',
+                  excludeSemantics: true,
+                  child: Container(
+                    padding: const EdgeInsets.fromLTRB(10, 12, 10, 12),
+                    decoration: BoxDecoration(
+                      color: dark
+                          ? pal.elevated
+                          : Color.alphaBlend(
+                              pal.level(level).withValues(alpha: 0.08),
+                              Colors.white,
+                            ),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: mine
+                            ? pal.beacon.withValues(alpha: 0.6)
+                            : pal.border.withValues(alpha: 0.6),
+                        width: mine ? 1.5 : 1,
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        SizedBox(
+                          width: 20,
+                          height: 18,
+                          child: FittedBox(child: SignalBars(level: level)),
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          operatorLabel(op),
+                          maxLines: 1,
+                          style: TextStyle(
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w700,
+                            color: pal.text,
+                          ),
+                        ),
+                        Text(
+                          word,
+                          maxLines: 1,
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w600,
+                            color: pal.level(level),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+/// Shown instead of "Your trip" when there's nothing planned yet.
+class _FirstTripCard extends StatelessWidget {
+  const _FirstTripCard({required this.onSearch});
+
+  final VoidCallback onSearch;
+
+  @override
+  Widget build(BuildContext context) {
+    final pal = context.palette;
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: dark ? pal.secondaryContainer : const Color(0xFFF1F5FE),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            "We'll show where signal drops before you leave",
+            style: TextStyle(fontSize: 15, color: pal.text, height: 1.35),
+          ),
+          const SizedBox(height: 12),
+          ActionPill(
+            icon: PhosphorIconsRegular.magnifyingGlass,
+            label: 'Where to?',
+            tone: PillTone.elevated,
+            onTap: onSearch,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HeadsUpRow extends StatelessWidget {
+  const _HeadsUpRow({
+    required this.title,
+    required this.subtitle,
+    required this.none,
+    required this.onTap,
+  });
+
+  final String title;
+  final String subtitle;
+  final bool none;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final pal = context.palette;
+    final band = none ? SignalBand.none : SignalBand.weak;
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: none
+                    ? (dark ? const Color(0xFF3A4150) : const Color(0xFF2B3036))
+                    : band.color(context),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                none
+                    ? PhosphorIconsBold.cellSignalSlash
+                    : PhosphorIconsBold.cellSignalLow,
+                size: 18,
+                color: Colors.white,
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: pal.text,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: TextStyle(fontSize: 13, color: pal.muted),
+                  ),
+                ],
+              ),
+            ),
+            Icon(PhosphorIconsRegular.caretRight, size: 16, color: pal.muted),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ReadyCard extends StatelessWidget {
+  const _ReadyCard({required this.items});
+
+  final List<(bool, String)> items;
+
+  @override
+  Widget build(BuildContext context) {
+    final pal = context.palette;
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      decoration: BoxDecoration(
+        color: dark ? pal.elevated : const Color(0xFFEFF7F1),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Column(
+        children: [
+          for (final (done, label) in items)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Row(
+                children: [
+                  Icon(
+                    done
+                        ? PhosphorIconsFill.checkCircle
+                        : PhosphorIconsRegular.circle,
+                    size: 20,
+                    color: done ? pal.good : pal.muted,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      label,
+                      style: TextStyle(fontSize: 14.5, color: pal.text),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
     );
   }
 }
@@ -535,10 +907,10 @@ class _ContinueCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
-          SignalCoverageBar(
-            stats: route.stats[session.operatorFilter] ?? route.stats['all']!,
-            height: 8,
-            showLegend: true,
+          MiniSignalBars(route: route, op: _cardOp(session)),
+          const SizedBox(height: 8),
+          _BandLegend(
+            stats: route.stats[_cardOp(session)] ?? route.stats['all']!,
           ),
           const SizedBox(height: 16),
           Row(
@@ -966,6 +1338,101 @@ class DirectionsFooter extends StatelessWidget {
   }
 }
 
+class _DestinationRow extends StatelessWidget {
+  const _DestinationRow({
+    required this.place,
+    required this.op,
+    required this.arrivalLevel,
+    required this.onTap,
+  });
+
+  final Place place;
+  final String op;
+  final String arrivalLevel;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final pal = context.palette;
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final word = switch (arrivalLevel) {
+      'good' => 'strong',
+      'moderate' => 'fair',
+      'weak' => 'weak',
+      _ => 'no',
+    };
+    return Semantics(
+      button: true,
+      label: 'Destination ${place.name}',
+      excludeSemantics: true,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: dark
+                      ? pal.destination.withValues(alpha: 0.18)
+                      : const Color(0xFFFDE7E6),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  PhosphorIconsFill.mapPin,
+                  size: 20,
+                  color: pal.destination,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      place.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: pal.text,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text.rich(
+                      TextSpan(
+                        children: [
+                          if (place.subtitle.isNotEmpty)
+                            TextSpan(text: '${place.subtitle.split(' · ').first}  ·  '),
+                          TextSpan(
+                            text: '${operatorLabel(op)} $word on arrival',
+                            style: TextStyle(
+                              color: pal.level(arrivalLevel),
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: 13, color: pal.muted),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(PhosphorIconsRegular.caretRight, size: 18, color: pal.muted),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 const _prefLabels = {
   'connectivity': 'Best signal',
   'balanced': 'Balanced',
@@ -983,6 +1450,10 @@ class DirectionsBody extends StatelessWidget {
     required this.onDestination,
     required this.onSelectRoute,
   });
+
+  /// Drive's resting height above the nav: handle (22) + title row and
+  /// tabs (98) + chips and the ETA lines (120) + the pill footer (65).
+  static const halfHeight = 305.0;
 
   final Session session;
   final ScrollController scroll;
@@ -1016,7 +1487,6 @@ class DirectionsBody extends StatelessWidget {
 
   Widget _content(BuildContext context) {
     final pal = context.palette;
-    final dark = Theme.of(context).brightness == Brightness.dark;
     final route = session.route;
     final op = session.operatorFilter;
     final none = route.segments
@@ -1162,49 +1632,20 @@ class DirectionsBody extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 16),
-        // Destination card on a grey band.
+        // Destination: one clean row, no grey band.
         stagger(
-          Container(
-            color: dark ? pal.ink : const Color(0xFFF1F3F6),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            child: Material(
-              color: pal.surface,
-              borderRadius: BorderRadius.circular(16),
-              clipBehavior: Clip.antiAlias,
-              child: InkWell(
-                onTap: onDestination,
-                child: SizedBox(
-                  height: 56,
-                  child: Row(
-                    children: [
-                      const SizedBox(width: 16),
-                      Icon(
-                        PhosphorIconsRegular.mapPin,
-                        size: 22,
-                        color: pal.text,
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Text(
-                          session.destination.name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(fontSize: 15.5, color: pal.text),
-                        ),
-                      ),
-                      Icon(
-                        PhosphorIconsRegular.caretRight,
-                        size: 18,
-                        color: pal.text,
-                      ),
-                      const SizedBox(width: 16),
-                    ],
-                  ),
-                ),
-              ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: _DestinationRow(
+              place: session.destination,
+              op: op,
+              arrivalLevel: route.segments.last.levelFor(op),
+              onTap: onDestination,
             ),
           ),
         ),
+        const SizedBox(height: 4),
+        divider,
         stagger(title('Signal')),
         stagger(
           Padding(

@@ -786,3 +786,73 @@ class _StepDivider extends StatelessWidget {
     );
   }
 }
+
+// ---------------------------------------------------------------------------
+// Mini version of the chart, for cards
+// ---------------------------------------------------------------------------
+
+/// Compact signal bars for a trip card: same bands and heights as the Drive
+/// chart, no legend or axis.
+class MiniSignalBars extends StatelessWidget {
+  const MiniSignalBars({
+    super.key,
+    required this.route,
+    required this.op,
+    this.height = 40,
+  });
+
+  final JourneyRoute route;
+  final String op;
+  final double height;
+
+  @override
+  Widget build(BuildContext context) {
+    final bars = signalStretches(route, op, count: 18);
+    final none = bars.where((b) => b.band == SignalBand.none).length;
+    return Semantics(
+      label:
+          'Signal along the trip for ${operatorLabel(op)}: '
+          '$none of ${bars.length} stretches with no signal',
+      excludeSemantics: true,
+      child: SizedBox(
+        height: height,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            for (var i = 0; i < bars.length; i++)
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 1.5),
+                  child: TweenAnimationBuilder<double>(
+                    tween: Tween(
+                      begin: 0,
+                      end: bars[i].band == SignalBand.none
+                          ? 0.1
+                          : (bars[i].strength / 100).clamp(0.15, 1.0),
+                    ),
+                    duration: Motion.of(
+                      context,
+                      Duration(milliseconds: 380 + i * 20),
+                    ),
+                    curve: Motion.enter,
+                    builder: (context, v, _) => FractionallySizedBox(
+                      heightFactor: v,
+                      alignment: Alignment.bottomCenter,
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: bars[i].band.color(context),
+                          borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(2.5),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}

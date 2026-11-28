@@ -110,7 +110,7 @@ class _MapScreenState extends ConsumerState<MapScreen>
       _loadingRoutes = false;
     });
     _reveal.value = 0;
-    _sheet.snapTo(SheetDetent.half);
+    _sheet.snapTo(SheetDetent.peek);
     _camera.moveTo(
       session.here,
       11.5,
@@ -119,11 +119,15 @@ class _MapScreenState extends ConsumerState<MapScreen>
   }
 
   void _fitRoutes(Session session) {
-    final h = MediaQuery.sizeOf(context).height;
     final all = [for (final r in session.catalog.routes) ...r.points];
     _camera.fitBounds(
       LatLngBounds.fromPoints(all),
-      padding: EdgeInsets.fromLTRB(40, 170, 56, h * 0.46 + 24),
+      padding: EdgeInsets.fromLTRB(
+        40,
+        170,
+        56,
+        DirectionsBody.halfHeight + MediaQuery.paddingOf(context).bottom + 24,
+      ),
       duration: Motion.of(context, Motion.camera),
     );
   }
@@ -175,6 +179,14 @@ class _MapScreenState extends ConsumerState<MapScreen>
                 // Peek: handle + title row (+ the pill footer in Drive).
                 peekHeight: directions ? 138 : 74,
                 halfFraction: 0.42,
+                // Opens tucked at the bottom: just the area + signal chip,
+                // until you drag it, tap a spot, or search.
+                initialDetent: widget.initialMode == MapMode.directions
+                    ? SheetDetent.half
+                    : SheetDetent.peek,
+                // Drive stops right under the ETA line, so nothing peeks
+                // half-cut and the routes keep most of the screen.
+                halfHeight: directions ? DirectionsBody.halfHeight : null,
                 header: AnimatedBuilder(
                   animation: _sheet,
                   builder: (context, _) => AnimatedSwitcher(
@@ -378,9 +390,10 @@ class _MapScreenState extends ConsumerState<MapScreen>
         onLongPress: (_, pt) => _droppedPin(context, session, pt),
         // Tapping the map in Drive tucks the sheet down to its header and
         // pill row, like Maps.
+        // Tapping empty map tucks the sheet back down (Drive keeps its
+        // header and pill row; Explore keeps the area strip).
         onTap: (_, _) {
-          if (_mode == MapMode.directions &&
-              _sheet.detent != SheetDetent.peek) {
+          if (_sheet.detent != SheetDetent.peek) {
             _sheet.snapTo(SheetDetent.peek);
           }
         },
