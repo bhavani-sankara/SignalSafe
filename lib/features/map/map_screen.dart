@@ -5,7 +5,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:latlong2/latlong.dart';
+import 'package:latlong2/latlong.dart' hide Path;
 import 'package:phosphor_icons/phosphor_icons.dart';
 
 import '../../core/geo.dart';
@@ -84,6 +84,12 @@ class _MapScreenState extends ConsumerState<MapScreen>
       _loadingRoutes = !reduced;
       _category = null;
     });
+    // Directions tabs are per network; start on the person's own network.
+    if (session.operatorFilter == 'all') {
+      ref
+          .read(sessionProvider.notifier)
+          .update((s) => s.copyWith(operatorFilter: s.preferredOperator));
+    }
     _sheet.snapTo(SheetDetent.half);
     _loadingTimer?.cancel();
     _loadingTimer = Timer(Motion.skeletonHold, () {
@@ -122,6 +128,15 @@ class _MapScreenState extends ConsumerState<MapScreen>
     );
   }
 
+  /// A route-preference chip changed: apply it and switch to whichever route
+  /// now ranks first.
+  void _applyPrefs(Session Function(Session) change) {
+    ref.read(sessionProvider.notifier).update((s) {
+      final next = change(s);
+      return next.copyWith(selectedRouteId: next.rankedRoutes().first.id);
+    });
+  }
+
   void _selectRoute(String id) {
     if (id == ref.read(sessionProvider)?.selectedRouteId) return;
     ref
@@ -157,7 +172,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
 
               SpringSheet(
                 controller: _sheet,
-                peekHeight: directions ? 96 : 72,
+                // Peek: handle + title row (+ the pill footer in Drive).
+                peekHeight: directions ? 138 : 74,
                 halfFraction: 0.42,
                 header: AnimatedBuilder(
                   animation: _sheet,
@@ -173,12 +189,12 @@ class _MapScreenState extends ConsumerState<MapScreen>
                         ? DirectionsHeader(
                             key: const ValueKey('dir'),
                             session: session,
-                            loading: _loadingRoutes,
-                            expansion: _sheet.expansion,
-                            onCollapse: () => _sheet.snapTo(SheetDetent.half),
                             onOperator: (op) => ref
                                 .read(sessionProvider.notifier)
                                 .update((s) => s.copyWith(operatorFilter: op)),
+                            onOptions: () => _routeOptions(context),
+                            onShare: () => _share(context),
+                            onClose: () => _exitDirections(session),
                           )
                         : ExploreHeader(
                             key: const ValueKey('explore'),
@@ -187,6 +203,32 @@ class _MapScreenState extends ConsumerState<MapScreen>
                             onCollapse: () => _sheet.snapTo(SheetDetent.half),
                           ),
                   ),
+                ),
+                footer: AnimatedSwitcher(
+                  duration: Motion.of(context, Motion.standard),
+                  switchInCurve: Motion.enter,
+                  switchOutCurve: Motion.exit,
+                  transitionBuilder: (child, a) => SizeTransition(
+                    sizeFactor: a,
+                    alignment: Alignment.topCenter,
+                    child: FadeTransition(opacity: a, child: child),
+                  ),
+                  child: directions
+                      ? DirectionsFooter(
+                          key: const ValueKey('dir-footer'),
+                          onStart: () => _start(context, session),
+                          onAddStop: () => _toast(
+                            context,
+                            'Adding stops is coming soon (demo)',
+                            PhosphorIconsRegular.mapPinPlus,
+                          ),
+                          onShare: () => _share(context),
+                          onSave: () => _save(context),
+                          onOffline: () => _offline(context),
+                          onReport: () => context.push('/report'),
+                          onCompare: () => context.push('/compare'),
+                        )
+                      : const SizedBox(width: double.infinity),
                 ),
                 builder: (context, scroll, physics) => AnimatedSwitcher(
                   duration: Motion.of(context, Motion.standard),
@@ -199,15 +241,9 @@ class _MapScreenState extends ConsumerState<MapScreen>
                           scroll: scroll,
                           physics: physics,
                           loading: _loadingRoutes,
-                          onStart: () => _start(context, session),
-                          onOffline: () => _offline(context),
-                          onReport: () => context.push('/report'),
-                          onCompare: () => context.push('/compare'),
-                          onShare: () => _toast(
-                            context,
-                            'Route link copied (demo)',
-                            PhosphorIconsRegular.shareNetwork,
-                          ),
+                          onPrefs: _applyPrefs,
+                          onDestination: () =>
+                              _placeSheet(context, session.destination),
                           onSelectRoute: _selectRoute,
                         )
                       : ExploreBody(
@@ -282,15 +318,19 @@ class _MapScreenState extends ConsumerState<MapScreen>
                                       horizontal: 12,
                                     ),
                                     child: SearchPill(
-                                      initial: session.userName.characters
-                                          .first,
+                                      initial:
+                                          session.userName.characters.first,
                                       onSearch: () => _search(
                                         context,
                                         session,
                                         'destination',
                                       ),
-                                      onProfile: () =>
-                                          context.go('/profile'),
+                                      onProfile: () => context.go('/profile'),
+                                      onVoice: () => _toast(
+                                        context,
+                                        'Voice search is coming soon (demo)',
+                                        PhosphorIconsRegular.microphone,
+                                      ),
                                     ),
                                   ),
                                   const SizedBox(height: 6),
@@ -336,6 +376,14 @@ class _MapScreenState extends ConsumerState<MapScreen>
           if (hasGesture && _camera.isAnimating) _camera.stop();
         },
         onLongPress: (_, pt) => _droppedPin(context, session, pt),
+        // Tapping the map in Drive tucks the sheet down to its header and
+        // pill row, like Maps.
+        onTap: (_, _) {
+          if (_mode == MapMode.directions &&
+              _sheet.detent != SheetDetent.peek) {
+            _sheet.snapTo(SheetDetent.peek);
+          }
+        },
       ),
       children: [
         TileLayer(
@@ -377,8 +425,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
           markers: [
             Marker(
               point: session.here,
-              width: 56,
-              height: 56,
+              width: 84,
+              height: 84,
               child: Semantics(
                 label: 'Your location',
                 child: const _LocationPuck(),
@@ -419,7 +467,10 @@ class _MapScreenState extends ConsumerState<MapScreen>
       final sliceStart = i / totalSlices;
       final sliceEnd = (i + 1) / totalSlices;
       if (t <= sliceStart) break;
-      final local = ((t - sliceStart) / (sliceEnd - sliceStart)).clamp(0.0, 1.0);
+      final local = ((t - sliceStart) / (sliceEnd - sliceStart)).clamp(
+        0.0,
+        1.0,
+      );
       final pts = trimPolyline(slices[i], local);
       final low = _isLow(route.segments[i].levelFor(op));
       selected
@@ -529,9 +580,11 @@ class _MapScreenState extends ConsumerState<MapScreen>
       route.segments.map((s) => s.km).toList(),
     );
     final gap = route.segments.indexWhere((s) => _isLow(s.levelFor(op)));
-    final cp = const Interval(0.85, 1, curve: Motion.enter).transform(
-      _reveal.value,
-    );
+    final cp = const Interval(
+      0.85,
+      1,
+      curve: Motion.enter,
+    ).transform(_reveal.value);
     if (gap >= 0 && slices[gap].isNotEmpty && cp > 0) {
       final seg = route.segments[gap];
       final none = seg.levelFor(op) == 'none';
@@ -544,7 +597,8 @@ class _MapScreenState extends ConsumerState<MapScreen>
           child: Opacity(
             opacity: cp,
             child: Semantics(
-              label: '${seg.min} min ${none ? 'no-signal' : 'weak-signal'} section',
+              label:
+                  '${seg.min} min ${none ? 'no-signal' : 'weak-signal'} section',
               excludeSemantics: true,
               child: FittedBox(
                 fit: BoxFit.scaleDown,
@@ -604,14 +658,31 @@ class _MapScreenState extends ConsumerState<MapScreen>
             tower.operator != session.operatorFilter) {
           continue;
         }
+        final score = towerScore(tower);
         markers.add(
-          _pin(
-            tower.point,
-            operatorColor(tower.operator),
-            PhosphorIconsFill.broadcast,
-            semanticLabel:
-                '${operatorLabel(tower.operator)} tower, ${tower.name}',
-            onTap: () => _towerSheet(context, tower),
+          Marker(
+            point: tower.point,
+            width: 72,
+            height: 40,
+            alignment: Alignment.topCenter,
+            child: Semantics(
+              button: true,
+              label:
+                  '${operatorLabel(tower.operator)} tower, ${tower.name}, '
+                  'signal score $score',
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => _towerSheet(context, tower),
+                child: Align(
+                  alignment: Alignment.bottomCenter,
+                  child: ScoreBubblePin(
+                    color: operatorColor(tower.operator),
+                    icon: PhosphorIconsFill.broadcast,
+                    score: score,
+                  ),
+                ),
+              ),
+            ),
           ),
         );
       }
@@ -707,27 +778,28 @@ class _MapScreenState extends ConsumerState<MapScreen>
       width: 48,
       height: 56,
       alignment: Alignment.topCenter,
-      child: Semantics(
-        button: true,
-        label: 'Destination, ${session.destination.name}',
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: () => _placeSheet(context, session.destination),
-          child: Align(
-            alignment: Alignment.bottomCenter,
-            child: Icon(
-              PhosphorIconsFill.mapPin,
-              size: 40,
-              color: pal.destination,
+      child:
+          Semantics(
+            button: true,
+            label: 'Destination, ${session.destination.name}',
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () => _placeSheet(context, session.destination),
+              child: Align(
+                alignment: Alignment.bottomCenter,
+                child: Icon(
+                  PhosphorIconsFill.mapPin,
+                  size: 40,
+                  color: pal.destination,
+                ),
+              ),
             ),
+          ).animate().scale(
+            begin: const Offset(0.4, 0.4),
+            alignment: Alignment.bottomCenter,
+            duration: 280.ms,
+            curve: Motion.enter,
           ),
-        ),
-      ).animate().scale(
-        begin: const Offset(0.4, 0.4),
-        alignment: Alignment.bottomCenter,
-        duration: 280.ms,
-        curve: Motion.enter,
-      ),
     );
   }
 
@@ -787,9 +859,60 @@ class _MapScreenState extends ConsumerState<MapScreen>
     ref
         .read(sessionProvider.notifier)
         .update(
-          (s) => s.copyWith(selectedRouteId: session.route.id, navProgress: 0.08),
+          (s) =>
+              s.copyWith(selectedRouteId: session.route.id, navProgress: 0.08),
         );
     context.push('/navigate');
+  }
+
+  void _share(BuildContext context) => _toast(
+    context,
+    'Route link copied (demo)',
+    PhosphorIconsRegular.shareNetwork,
+  );
+
+  void _save(BuildContext context) => _toast(
+    context,
+    'Saved to Trips (demo)',
+    PhosphorIconsRegular.bookmarkSimple,
+  );
+
+  Future<void> _routeOptions(BuildContext context) {
+    return showStagedSheet<void>(
+      context: context,
+      title: 'Route options',
+      subtitle: 'Signal-aware choices for this drive',
+      builder: (context) => Consumer(
+        builder: (context, ref, _) {
+          final s = ref.watch(sessionProvider);
+          if (s == null) return const SizedBox.shrink();
+          return Padding(
+            padding: const EdgeInsets.fromLTRB(8, 0, 8, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SwitchListTile(
+                  title: const Text('Avoid blackspots'),
+                  subtitle: const Text('Skip long stretches with no signal'),
+                  value: s.avoidLongBlackspots,
+                  onChanged: (v) =>
+                      _applyPrefs((s) => s.copyWith(avoidLongBlackspots: v)),
+                ),
+                SwitchListTile(
+                  title: const Text('Near help points'),
+                  subtitle: const Text(
+                    'Prefer roads with hospitals and police',
+                  ),
+                  value: s.stayNearServices,
+                  onChanged: (v) =>
+                      _applyPrefs((s) => s.copyWith(stayNearServices: v)),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
   }
 
   void _offline(BuildContext context) {
@@ -908,16 +1031,15 @@ class _MapScreenState extends ConsumerState<MapScreen>
                 const SizedBox(height: 18),
                 Text(
                   'Network',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+                  style: Theme.of(context).textTheme.titleSmall
+                      ?.copyWith(fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 10),
                 Wrap(
                   spacing: 8,
                   runSpacing: 8,
                   children: [
-                    for (final op in NetworkTabs.ops)
+                    for (final op in ['all', ...NetworkTabs.ops])
                       ChoiceChip(
                         label: Text(operatorLabel(op)),
                         selected: session.operatorFilter == op,
@@ -1112,7 +1234,10 @@ class _MapScreenState extends ConsumerState<MapScreen>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (report.comment.isNotEmpty)
-              Text(report.comment, style: TextStyle(color: pal.text, height: 1.5)),
+              Text(
+                report.comment,
+                style: TextStyle(color: pal.text, height: 1.5),
+              ),
             const SizedBox(height: 12),
             Row(
               children: [
@@ -1330,28 +1455,34 @@ class _LayerTile extends StatelessWidget {
   }
 }
 
-/// "You are here": a teal dot with a slow breathing halo.
+/// "You are here": a blue dot with a white ring, a soft accuracy halo that
+/// breathes, and a heading cone showing which way you're facing (Figma
+/// "Location points").
 class _LocationPuck extends StatelessWidget {
   const _LocationPuck();
+
+  /// Facing direction in radians from north. Fixed until we read the compass.
+  static const heading = -0.35;
 
   @override
   Widget build(BuildContext context) {
     final pal = context.palette;
     Widget halo = Container(
-      width: 48,
-      height: 48,
+      width: 46,
+      height: 46,
       decoration: BoxDecoration(
-        color: pal.beacon.withValues(alpha: 0.16),
+        color: pal.beacon.withValues(alpha: 0.13),
         shape: BoxShape.circle,
+        border: Border.all(color: pal.beacon.withValues(alpha: 0.22)),
       ),
     );
     if (!Motion.reduced(context)) {
       halo = halo
           .animate(onPlay: (c) => c.repeat(reverse: true))
           .scale(
-            begin: const Offset(0.6, 0.6),
+            begin: const Offset(0.82, 0.82),
             end: const Offset(1, 1),
-            duration: 1600.ms,
+            duration: 1800.ms,
             curve: Curves.easeInOut,
           );
     }
@@ -1359,17 +1490,58 @@ class _LocationPuck extends StatelessWidget {
       alignment: Alignment.center,
       children: [
         halo,
+        Transform.rotate(
+          angle: heading,
+          child: CustomPaint(
+            size: const Size(84, 84),
+            painter: _HeadingConePainter(pal.beacon),
+          ),
+        ),
         Container(
-          width: 20,
-          height: 20,
+          width: 18,
+          height: 18,
           decoration: BoxDecoration(
             color: pal.beacon,
             shape: BoxShape.circle,
-            border: Border.all(color: Colors.white, width: 3),
-            boxShadow: softShadow(context),
+            border: Border.all(color: Colors.white, width: 2.5),
+            boxShadow: softShadow(context, strength: 1.2),
           ),
         ),
       ],
     );
   }
+}
+
+class _HeadingConePainter extends CustomPainter {
+  _HeadingConePainter(this.color);
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final c = size.center(Offset.zero);
+    final r = size.width / 2;
+    const spread = 0.42; // half-angle of the cone
+    final path = Path()
+      ..moveTo(c.dx, c.dy)
+      ..arcTo(
+        Rect.fromCircle(center: c, radius: r),
+        -1.5708 - spread,
+        spread * 2,
+        false,
+      )
+      ..close();
+    final paint = Paint()
+      ..shader = RadialGradient(
+        colors: [
+          color.withValues(alpha: 0.55),
+          color.withValues(alpha: 0.18),
+          color.withValues(alpha: 0),
+        ],
+        stops: const [0.15, 0.6, 1],
+      ).createShader(Rect.fromCircle(center: c, radius: r));
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(_HeadingConePainter old) => old.color != color;
 }

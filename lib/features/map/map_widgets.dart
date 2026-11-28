@@ -84,28 +84,48 @@ Color categoryAccent(String category, SignalPalette pal) => switch (category) {
 // Floating search pill (explore mode)
 // ---------------------------------------------------------------------------
 
+/// The search bar in its two Figma states: floating (white, shadow) over
+/// the map, and flat (grey fill, hairline border) on a page.
+BoxDecoration searchBarDecoration(BuildContext context, {bool flat = false}) {
+  final pal = context.palette;
+  final dark = Theme.of(context).brightness == Brightness.dark;
+  return flat
+      ? BoxDecoration(
+          color: dark ? pal.elevated : const Color(0xFFF3F5F8),
+          borderRadius: BorderRadius.circular(27),
+          border: Border.all(color: pal.border),
+        )
+      : BoxDecoration(
+          color: pal.surface,
+          borderRadius: BorderRadius.circular(27),
+          boxShadow: softShadow(context, strength: 1.3),
+        );
+}
+
 class SearchPill extends StatelessWidget {
   const SearchPill({
     super.key,
     required this.onSearch,
     required this.onProfile,
     required this.initial,
+    this.onVoice,
+    this.flat = false,
   });
 
   final VoidCallback onSearch;
   final VoidCallback onProfile;
+  final VoidCallback? onVoice;
   final String initial;
+  final bool flat;
 
   @override
   Widget build(BuildContext context) {
     final pal = context.palette;
-    return Container(
+    return AnimatedContainer(
+      duration: Motion.standard,
+      curve: Motion.enter,
       height: 54,
-      decoration: BoxDecoration(
-        color: pal.surface,
-        borderRadius: BorderRadius.circular(27),
-        boxShadow: softShadow(context, strength: 1.3),
-      ),
+      decoration: searchBarDecoration(context, flat: flat),
       child: Material(
         type: MaterialType.transparency,
         child: InkWell(
@@ -122,14 +142,24 @@ class SearchPill extends StatelessWidget {
                   style: TextStyle(color: pal.muted, fontSize: 16),
                 ),
               ),
+              IconButton(
+                tooltip: 'Search by voice',
+                onPressed: onVoice ?? onSearch,
+                icon: Icon(
+                  PhosphorIconsRegular.microphone,
+                  size: 22,
+                  color: pal.text,
+                ),
+              ),
+              const SizedBox(width: 2),
               Semantics(
                 button: true,
                 label: 'Profile',
                 child: GestureDetector(
                   onTap: onProfile,
                   child: Container(
-                    width: 34,
-                    height: 34,
+                    width: 36,
+                    height: 36,
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
                       color: pal.secondaryContainer,
@@ -335,7 +365,7 @@ class CategoryChips extends StatelessWidget {
       height: 44,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         clipBehavior: Clip.none,
         itemCount: mapCategories.length,
         separatorBuilder: (_, _) => const SizedBox(width: 8),
@@ -352,10 +382,10 @@ class CategoryChips extends StatelessWidget {
               child: AnimatedContainer(
                 duration: Motion.quick,
                 curve: Motion.enter,
-                padding: const EdgeInsets.symmetric(horizontal: 14),
+                padding: const EdgeInsets.only(left: 10, right: 14),
                 decoration: BoxDecoration(
                   color: on ? pal.secondaryContainer : pal.surface,
-                  borderRadius: BorderRadius.circular(18),
+                  borderRadius: BorderRadius.circular(16),
                   boxShadow: on ? null : softShadow(context),
                 ),
                 child: Row(
@@ -363,7 +393,7 @@ class CategoryChips extends StatelessWidget {
                   children: [
                     Icon(
                       on ? PhosphorIconsBold.check : categoryIcon(id),
-                      size: 15,
+                      size: 17,
                       color: on
                           ? pal.onSecondaryContainer
                           : categoryAccent(id, pal),
@@ -372,7 +402,7 @@ class CategoryChips extends StatelessWidget {
                     Text(
                       label,
                       style: TextStyle(
-                        fontSize: 13,
+                        fontSize: 13.5,
                         fontWeight: FontWeight.w600,
                         color: on ? pal.onSecondaryContainer : pal.text,
                       ),
@@ -387,6 +417,102 @@ class CategoryChips extends StatelessWidget {
     );
   }
 }
+
+// ---------------------------------------------------------------------------
+// Signal score pin (the Figma "rating bubble")
+// ---------------------------------------------------------------------------
+
+/// White bubble with a hairline border, a coloured glyph circle, a bold
+/// score and a tail pointing at the spot. Use with `Alignment.topCenter` on
+/// the marker so the tail tip lands on the point.
+class ScoreBubblePin extends StatelessWidget {
+  const ScoreBubblePin({
+    super.key,
+    required this.color,
+    required this.icon,
+    required this.score,
+  });
+
+  final Color color;
+  final IconData icon;
+  final int score;
+
+  @override
+  Widget build(BuildContext context) {
+    final pal = context.palette;
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final bg = dark ? pal.elevated : Colors.white;
+    final edge = dark ? pal.border : const Color(0xFFBFC5CE);
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          padding: const EdgeInsets.fromLTRB(2, 2, 8, 2),
+          decoration: BoxDecoration(
+            color: bg,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: edge),
+            boxShadow: softShadow(context),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 22,
+                height: 22,
+                decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+                child: Icon(icon, size: 12, color: Colors.white),
+              ),
+              const SizedBox(width: 5),
+              Text(
+                '$score',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  height: 1.1,
+                  color: pal.text,
+                ),
+              ),
+            ],
+          ),
+        ),
+        CustomPaint(
+          size: const Size(12, 6),
+          painter: _TailPainter(fill: bg, edge: edge),
+        ),
+      ],
+    );
+  }
+}
+
+class _TailPainter extends CustomPainter {
+  _TailPainter({required this.fill, required this.edge});
+  final Color fill;
+  final Color edge;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final path = Path()
+      ..moveTo(0, -1)
+      ..lineTo(size.width / 2, size.height)
+      ..lineTo(size.width, -1);
+    canvas.drawPath(path, Paint()..color = fill);
+    canvas.drawPath(
+      path,
+      Paint()
+        ..color = edge
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_TailPainter old) => old.fill != fill || old.edge != edge;
+}
+
+/// Dummy 0–100 signal score for a tower until real measurements exist.
+int towerScore(Tower t) =>
+    55 + t.id.codeUnits.fold<int>(0, (a, c) => (a * 31 + c) % 997) % 40;
 
 // ---------------------------------------------------------------------------
 // Time + signal bubble pinned on each route line
@@ -486,14 +612,14 @@ class NetworkTabs extends StatelessWidget {
   final String selected;
   final ValueChanged<String> onSelected;
 
-  static const ops = ['all', 'jio', 'airtel', 'vi', 'bsnl'];
+  static const ops = ['jio', 'airtel', 'vi', 'bsnl'];
 
   @override
   Widget build(BuildContext context) {
     final pal = context.palette;
     final index = ops.indexOf(selected).clamp(0, ops.length - 1);
     return SizedBox(
-      height: 54,
+      height: 48,
       child: LayoutBuilder(
         builder: (context, c) {
           final w = c.maxWidth / ops.length;
@@ -508,8 +634,8 @@ class NetworkTabs extends StatelessWidget {
               AnimatedPositioned(
                 duration: Motion.of(context, Motion.standard),
                 curve: Motion.enter,
-                left: w * index + 14,
-                width: w - 28,
+                left: w * index + 12,
+                width: w - 24,
                 bottom: 0,
                 height: 3,
                 child: DecoratedBox(
@@ -537,7 +663,8 @@ class NetworkTabs extends StatelessWidget {
   Widget _tab(BuildContext context, String op, bool on) {
     final pal = context.palette;
     final score = networkScore(route, op);
-    final label = op == 'all' ? 'All' : operatorLabel(op);
+    final label = operatorLabel(op);
+    final fg = on ? pal.beacon : pal.muted;
     return Semantics(
       button: true,
       selected: on,
@@ -545,38 +672,41 @@ class NetworkTabs extends StatelessWidget {
       excludeSemantics: true,
       child: InkWell(
         onTap: () => onSelected(op),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  PhosphorIconsFill.cellSignalHigh,
-                  size: 13,
-                  color: scoreColor(pal, score),
-                ),
-                const SizedBox(width: 3),
-                Text(
-                  '$score',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: on ? pal.text : pal.muted,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          child: Center(
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    PhosphorIconsFill.cellSignalHigh,
+                    size: 15,
+                    color: scoreColor(pal, score),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 2),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: on ? FontWeight.w700 : FontWeight.w500,
-                color: on ? pal.beacon : pal.muted,
+                  const SizedBox(width: 5),
+                  Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 14.5,
+                      fontWeight: on ? FontWeight.w700 : FontWeight.w500,
+                      color: on ? pal.beacon : pal.text,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    '$score',
+                    style: TextStyle(
+                      fontSize: 14.5,
+                      fontWeight: FontWeight.w500,
+                      color: fg,
+                    ),
+                  ),
+                ],
               ),
             ),
-          ],
+          ),
         ),
       ),
     );

@@ -9,7 +9,9 @@ import '../../theme/app_theme.dart';
 import '../../theme/motion.dart';
 import '../../widgets/hud.dart';
 import '../../widgets/skeleton.dart';
+import '../../widgets/pills.dart';
 import 'map_widgets.dart';
+import 'route_details.dart';
 
 // ===========================================================================
 // EXPLORE sheet (no route yet)
@@ -83,7 +85,10 @@ class ExploreHeader extends StatelessWidget {
                       style: IconButton.styleFrom(
                         backgroundColor: pal.elevated,
                       ),
-                      icon: const Icon(PhosphorIconsRegular.caretDown, size: 18),
+                      icon: const Icon(
+                        PhosphorIconsRegular.caretDown,
+                        size: 18,
+                      ),
                     ),
                   )
                 : const SizedBox(width: 8),
@@ -149,6 +154,14 @@ class ExploreBody extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 24),
       children: [
         Padding(
+          padding: const EdgeInsets.fromLTRB(16, 2, 16, 12),
+          child: _PlanCard(
+            session: session,
+            onRoute: onDirections,
+            onCoverage: onTripDetails,
+          ),
+        ),
+        Padding(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
           child: _ContinueCard(
             session: session,
@@ -164,7 +177,11 @@ class ExploreBody extends StatelessWidget {
           height: 132,
           children: [
             for (final t in towers.take(4))
-              _TowerCard(tower: t, km: distance(here, t.point) / 1000, onTap: () => onTower(t)),
+              _TowerCard(
+                tower: t,
+                km: distance(here, t.point) / 1000,
+                onTap: () => onTower(t),
+              ),
             for (final p in recoveries.take(3))
               _PlaceCard(place: p, onTap: () => onPlace(p)),
           ],
@@ -176,16 +193,166 @@ class ExploreBody extends StatelessWidget {
         _Carousel(
           height: 132,
           children: [
-            for (final p in essentials) _PlaceCard(place: p, onTap: () => onPlace(p)),
+            for (final p in essentials)
+              _PlaceCard(place: p, onTap: () => onPlace(p)),
           ],
         ),
         const SheetSectionTitle('From the community'),
-        for (final r in reports) _ReportRow(report: r, onTap: () => onReport(r)),
+        for (final r in reports)
+          _ReportRow(report: r, onTap: () => onReport(r)),
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
           child: SeeAllPill(label: 'See all reports', onTap: onSeeCommunity),
         ),
       ],
+    );
+  }
+}
+
+/// "Make plans with Ask Maps", as ours: a tinted card with a title, stacked
+/// suggestion pills, and a cluster of round glyphs on the right.
+class _PlanCard extends StatelessWidget {
+  const _PlanCard({
+    required this.session,
+    required this.onRoute,
+    required this.onCoverage,
+  });
+
+  final Session session;
+  final VoidCallback onRoute;
+  final VoidCallback onCoverage;
+
+  @override
+  Widget build(BuildContext context) {
+    final pal = context.palette;
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final from = session.origin.name.split(',').first;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 14, 12, 16),
+      decoration: BoxDecoration(
+        color: dark ? pal.elevated : const Color(0xFFEEF2F9),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text.rich(
+                  TextSpan(
+                    children: [
+                      const TextSpan(text: 'Make plans with  '),
+                      WidgetSpan(
+                        alignment: PlaceholderAlignment.middle,
+                        child: Icon(
+                          PhosphorIconsFill.sparkle,
+                          size: 15,
+                          color: pal.beacon,
+                        ),
+                      ),
+                      TextSpan(
+                        text: ' Signal Check',
+                        style: TextStyle(
+                          color: pal.beacon,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                  style: TextStyle(
+                    fontSize: 14.5,
+                    fontWeight: FontWeight.w500,
+                    color: pal.text,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                SuggestionPill(
+                  icon: Icons.subdirectory_arrow_right_rounded,
+                  label: '$from to ${session.destination.name}?',
+                  onTap: onRoute,
+                ),
+                const SizedBox(height: 8),
+                SuggestionPill(
+                  icon: Icons.subdirectory_arrow_right_rounded,
+                  label:
+                      'Where does ${operatorLabel(session.preferredOperator)} drop?',
+                  onTap: onCoverage,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 6),
+          const _GlyphCluster(),
+        ],
+      ),
+    );
+  }
+}
+
+class _GlyphCluster extends StatelessWidget {
+  const _GlyphCluster();
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    Widget dot(IconData icon, Color fg, Color bg, double size) => Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: dark
+            ? Color.alphaBlend(
+                fg.withValues(alpha: 0.25),
+                const Color(0xFF1B232F),
+              )
+            : bg,
+        shape: BoxShape.circle,
+        border: Border.all(
+          color: dark ? const Color(0xFF1B232F) : Colors.white,
+          width: 2,
+        ),
+      ),
+      child: Icon(icon, size: size * 0.46, color: fg),
+    );
+    return ExcludeSemantics(
+      child: SizedBox(
+        width: 64,
+        height: 80,
+        child: Stack(
+          children: [
+            Positioned(
+              right: 0,
+              top: 0,
+              child: dot(
+                PhosphorIconsFill.broadcast,
+                const Color(0xFF1F5BD6),
+                const Color(0xFFD9E5FF),
+                34,
+              ),
+            ),
+            Positioned(
+              left: 0,
+              top: 24,
+              child: dot(
+                PhosphorIconsFill.firstAid,
+                const Color(0xFFD93A2F),
+                const Color(0xFFFDDDDA),
+                32,
+              ),
+            ),
+            Positioned(
+              right: 4,
+              bottom: 0,
+              child: dot(
+                PhosphorIconsFill.shieldCheck,
+                const Color(0xFF2E7D32),
+                const Color(0xFFD6F0DA),
+                30,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -379,7 +546,10 @@ class _ContinueCard extends StatelessWidget {
               Expanded(
                 child: FilledButton.icon(
                   onPressed: onDirections,
-                  icon: const Icon(PhosphorIconsFill.arrowBendUpRight, size: 18),
+                  icon: const Icon(
+                    PhosphorIconsFill.arrowBendUpRight,
+                    size: 18,
+                  ),
                   label: const Text(
                     'Directions',
                     maxLines: 1,
@@ -393,9 +563,7 @@ class _ContinueCard extends StatelessWidget {
                   onPressed: onDetails,
                   style: dark
                       ? null
-                      : OutlinedButton.styleFrom(
-                          backgroundColor: Colors.white,
-                        ),
+                      : OutlinedButton.styleFrom(backgroundColor: Colors.white),
                   child: const Text(
                     'Trip details',
                     maxLines: 1,
@@ -428,10 +596,8 @@ class _Carousel extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16),
         itemCount: children.length,
         separatorBuilder: (_, _) => const SizedBox(width: 10),
-        itemBuilder: (context, i) => SizedBox(
-          width: width * 0.62,
-          child: children[i],
-        ),
+        itemBuilder: (context, i) =>
+            SizedBox(width: width * 0.62, child: children[i]),
       ),
     );
   }
@@ -470,7 +636,11 @@ class _TintCard extends StatelessWidget {
 }
 
 class _TowerCard extends StatelessWidget {
-  const _TowerCard({required this.tower, required this.km, required this.onTap});
+  const _TowerCard({
+    required this.tower,
+    required this.km,
+    required this.onTap,
+  });
 
   final Tower tower;
   final double km;
@@ -644,159 +814,150 @@ class _ReportRow extends StatelessWidget {
 // DIRECTIONS sheet
 // ===========================================================================
 
+/// Pinned header, measured off the Google Maps Drive sheet: a "Drive" title
+/// with three round actions, then the network tabs (Jio / Airtel / Vi /
+/// BSNL). At peek only the title row shows, sitting on the pill footer.
 class DirectionsHeader extends StatelessWidget {
   const DirectionsHeader({
     super.key,
     required this.session,
-    required this.loading,
-    required this.expansion,
     required this.onOperator,
-    required this.onCollapse,
+    required this.onOptions,
+    required this.onShare,
+    required this.onClose,
   });
 
   final Session session;
-  final bool loading;
-  final double expansion;
   final ValueChanged<String> onOperator;
-  final VoidCallback onCollapse;
+  final VoidCallback onOptions;
+  final VoidCallback onShare;
+  final VoidCallback onClose;
 
   @override
   Widget build(BuildContext context) {
     final pal = context.palette;
-    final route = session.route;
-    final op = session.operatorFilter;
-    final low = lowSignalMinutes(route, op);
-    final score = networkScore(route, op);
-    // ETA in amber when there's a stretch with no signal, like traffic.
-    final etaColor = low > 0 ? pal.moderate : pal.good;
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        AnimatedSwitcher(
-          duration: Motion.of(context, Motion.standard),
-          switchInCurve: Motion.enter,
-          child: loading
-              ? const SizedBox(
-                  key: ValueKey('loading'),
-                  height: 62,
-                )
-              : Padding(
-                  key: ValueKey('eta-${route.id}-$op'),
-                  padding: const EdgeInsets.fromLTRB(20, 0, 12, 0),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              crossAxisAlignment: CrossAxisAlignment.baseline,
-                              textBaseline: TextBaseline.alphabetic,
-                              children: [
-                                Text(
-                                  formatDuration(route.durationMin),
-                                  style: TextStyle(
-                                    color: etaColor,
-                                    fontSize: 26,
-                                    fontWeight: FontWeight.w600,
-                                    letterSpacing: -0.5,
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  '(${route.distanceKm.toStringAsFixed(0)} km)',
-                                  style: TextStyle(
-                                    color: pal.muted,
-                                    fontSize: 16,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              route.recommended
-                                  ? 'Best signal, even with the forest stretch'
-                                  : 'via ${route.via}',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(color: pal.muted, fontSize: 13),
-                            ),
-                          ],
-                        ),
-                      ),
-                      _ScoreBadge(score: score),
-                      AnimatedSize(
-                        duration: Motion.quick,
-                        child: expansion > 0.6
-                            ? Padding(
-                                padding: const EdgeInsets.only(left: 6),
-                                child: IconButton(
-                                  tooltip: 'Show map',
-                                  onPressed: onCollapse,
-                                  style: IconButton.styleFrom(
-                                    backgroundColor: pal.elevated,
-                                  ),
-                                  icon: const Icon(
-                                    PhosphorIconsRegular.caretDown,
-                                    size: 18,
-                                  ),
-                                ),
-                              )
-                            : const SizedBox(width: 8),
-                      ),
-                    ],
+        SizedBox(
+          height: 50,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 16, 6),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Drive',
+                    style: TextStyle(
+                      fontSize: 23,
+                      fontWeight: FontWeight.w500,
+                      letterSpacing: -0.2,
+                      color: pal.text,
+                    ),
                   ),
                 ),
+                CircleAction(
+                  icon: PhosphorIconsRegular.slidersHorizontal,
+                  tooltip: 'Route options',
+                  onTap: onOptions,
+                ),
+                const SizedBox(width: 14),
+                CircleAction(
+                  icon: PhosphorIconsRegular.shareNetwork,
+                  tooltip: 'Share route',
+                  onTap: onShare,
+                ),
+                const SizedBox(width: 14),
+                CircleAction(
+                  icon: PhosphorIconsRegular.x,
+                  tooltip: 'Close directions',
+                  onTap: onClose,
+                ),
+              ],
+            ),
+          ),
         ),
-        const SizedBox(height: 6),
-        NetworkTabs(route: route, selected: op, onSelected: onOperator),
+        NetworkTabs(
+          route: session.route,
+          selected: session.operatorFilter,
+          onSelected: onOperator,
+        ),
       ],
     );
   }
 }
 
-class _ScoreBadge extends StatelessWidget {
-  const _ScoreBadge({required this.score});
+/// Start / Add stops / Share / Save, pinned to the bottom of the sheet at
+/// every height (the collapsed Drive sheet is just the header and this).
+class DirectionsFooter extends StatelessWidget {
+  const DirectionsFooter({
+    super.key,
+    required this.onStart,
+    required this.onAddStop,
+    required this.onShare,
+    required this.onSave,
+    required this.onOffline,
+    required this.onReport,
+    required this.onCompare,
+  });
 
-  final int score;
+  final VoidCallback onStart;
+  final VoidCallback onAddStop;
+  final VoidCallback onShare;
+  final VoidCallback onSave;
+  final VoidCallback onOffline;
+  final VoidCallback onReport;
+  final VoidCallback onCompare;
 
   @override
   Widget build(BuildContext context) {
     final pal = context.palette;
-    final c = scoreColor(pal, score);
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    return Semantics(
-      label: 'Signal score $score',
-      excludeSemantics: true,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-        decoration: BoxDecoration(
-          color: Color.alphaBlend(
-            c.withValues(alpha: dark ? 0.22 : 0.13),
-            pal.surface,
-          ),
-          borderRadius: BorderRadius.circular(14),
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: pal.surface,
+        border: Border(
+          top: BorderSide(color: pal.border.withValues(alpha: 0.7)),
         ),
-        child: Column(
+      ),
+      child: Padding(
+        padding: const EdgeInsets.only(top: 8, bottom: 8),
+        child: PillRow(
           children: [
-            Text(
-              '$score',
-              style: TextStyle(
-                color: c,
-                fontSize: 20,
-                fontWeight: FontWeight.w700,
-                height: 1.1,
-              ),
+            ActionPill(
+              icon: PhosphorIconsRegular.navigationArrow,
+              label: 'Start',
+              tone: PillTone.filled,
+              onTap: onStart,
             ),
-            Text(
-              'signal',
-              style: TextStyle(
-                color: c,
-                fontSize: 10,
-                fontWeight: FontWeight.w600,
-              ),
+            ActionPill(
+              icon: PhosphorIconsRegular.mapPinPlus,
+              label: 'Add stops',
+              onTap: onAddStop,
+            ),
+            ActionPill(
+              icon: PhosphorIconsRegular.shareNetwork,
+              label: 'Share',
+              onTap: onShare,
+            ),
+            ActionPill(
+              icon: PhosphorIconsRegular.bookmarkSimple,
+              label: 'Save',
+              onTap: onSave,
+            ),
+            ActionPill(
+              icon: PhosphorIconsRegular.downloadSimple,
+              label: 'Offline',
+              onTap: onOffline,
+            ),
+            ActionPill(
+              icon: PhosphorIconsRegular.clipboardText,
+              label: 'Pre-trip report',
+              onTap: onReport,
+            ),
+            ActionPill(
+              icon: PhosphorIconsRegular.arrowsLeftRight,
+              label: 'Compare',
+              onTap: onCompare,
             ),
           ],
         ),
@@ -805,6 +966,12 @@ class _ScoreBadge extends StatelessWidget {
   }
 }
 
+const _prefLabels = {
+  'connectivity': 'Best signal',
+  'balanced': 'Balanced',
+  'fastest': 'Fastest',
+};
+
 class DirectionsBody extends StatelessWidget {
   const DirectionsBody({
     super.key,
@@ -812,11 +979,8 @@ class DirectionsBody extends StatelessWidget {
     required this.scroll,
     required this.physics,
     required this.loading,
-    required this.onStart,
-    required this.onOffline,
-    required this.onReport,
-    required this.onCompare,
-    required this.onShare,
+    required this.onPrefs,
+    required this.onDestination,
     required this.onSelectRoute,
   });
 
@@ -824,11 +988,10 @@ class DirectionsBody extends StatelessWidget {
   final ScrollController scroll;
   final ScrollPhysics physics;
   final bool loading;
-  final VoidCallback onStart;
-  final VoidCallback onOffline;
-  final VoidCallback onReport;
-  final VoidCallback onCompare;
-  final VoidCallback onShare;
+
+  /// Changes a route preference; the screen re-picks the best route.
+  final ValueChanged<Session Function(Session)> onPrefs;
+  final VoidCallback onDestination;
   final ValueChanged<String> onSelectRoute;
 
   @override
@@ -853,15 +1016,33 @@ class DirectionsBody extends StatelessWidget {
 
   Widget _content(BuildContext context) {
     final pal = context.palette;
+    final dark = Theme.of(context).brightness == Brightness.dark;
     final route = session.route;
     final op = session.operatorFilter;
-    final lowSegs = route.segments.where((s) {
-      final l = s.levelFor(op);
-      return l == 'none' || l == 'weak';
-    }).toList();
-    final lowMin = lowSegs.fold<int>(0, (t, s) => t + s.min);
-    final lowFrom = lowSegs.isEmpty ? null : lowSegs.first.label.split(' – ').first;
-    final others = session.rankedRoutes().where((r) => r.id != route.id).toList();
+    final none = route.segments
+        .where((s) => s.levelFor(op) == 'none')
+        .fold<int>(0, (t, s) => t + s.min);
+    final weak = route.segments
+        .where((s) => s.levelFor(op) == 'weak')
+        .fold<int>(0, (t, s) => t + s.min);
+    // ETA goes red when there's a dead zone, amber for weak, like traffic.
+    final etaColor = none > 0
+        ? pal.destination
+        : weak > 0
+        ? pal.moderate
+        : pal.good;
+    final why = none > 0
+        ? '${formatDuration(none)} with no ${operatorLabel(op)} signal'
+        : weak > 0
+        ? '${formatDuration(weak)} of weak ${operatorLabel(op)} signal'
+        : 'Signal the whole way';
+    final others = session
+        .rankedRoutes()
+        .where((r) => r.id != route.id)
+        .toList();
+    final blackspot = session.catalog.blackspots.isEmpty
+        ? null
+        : session.catalog.blackspots.first;
 
     var i = 0;
     Widget stagger(Widget w) => w
@@ -869,125 +1050,196 @@ class DirectionsBody extends StatelessWidget {
         .fadeIn(duration: 260.ms, curve: Motion.enter)
         .slideY(begin: 0.04, end: 0, duration: 300.ms, curve: Motion.enter);
 
+    Widget title(String text) => Padding(
+      padding: const EdgeInsets.fromLTRB(20, 22, 20, 12),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.w600,
+          color: pal.text,
+        ),
+      ),
+    );
+
+    final divider = Divider(height: 1, thickness: 1, color: pal.border);
+
     return ListView(
       key: ValueKey('content-${route.id}'),
       controller: scroll,
       physics: physics,
-      padding: const EdgeInsets.only(bottom: 24),
+      padding: const EdgeInsets.only(bottom: 16),
       children: [
         const SizedBox(height: 14),
-        stagger(
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: SignalCoverageBar(
-              stats: route.stats[op] ?? route.stats['all']!,
-              height: 8,
-              showLabels: true,
-            ),
-          ),
-        ),
-        if (lowMin > 0)
-          stagger(
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-              child: Row(
-                children: [
-                  Icon(
-                    PhosphorIconsRegular.wifiSlash,
-                    size: 16,
-                    color: pal.moderate,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      lowFrom == null
-                          ? '$lowMin min with weak or no signal'
-                          : '$lowMin min with weak or no signal from $lowFrom',
-                      style: TextStyle(
-                        color: pal.onWarningContainer,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 13,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        const SizedBox(height: 14),
-        // One filled action (Start), the rest tonal, in a row that bleeds
-        // off the edge so you can tell there's more.
+        // Filter chips, where Google has "Leave now ▾ · Avoid tolls · Avoid
+        // highways".
         stagger(
           SizedBox(
-            height: 44,
+            height: PillMetrics.chipHeight,
             child: ListView(
               scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 20),
               children: [
-                FilledButton.icon(
-                  onPressed: onStart,
-                  icon: const Icon(PhosphorIconsFill.navigationArrow, size: 18),
-                  label: const Text('Start'),
+                PopupMenuButton<String>(
+                  // Semantics come from the chip; no hover tooltip.
+                  tooltip: '',
+                  position: PopupMenuPosition.under,
+                  onSelected: (v) => onPrefs((s) => s.copyWith(routePref: v)),
+                  itemBuilder: (_) => [
+                    for (final e in _prefLabels.entries)
+                      CheckedPopupMenuItem(
+                        value: e.key,
+                        checked: session.routePref == e.key,
+                        child: Text(e.value),
+                      ),
+                  ],
+                  child: IgnorePointer(
+                    child: FilterChipPill(
+                      label: _prefLabels[session.routePref] ?? 'Best signal',
+                      icon: PhosphorIconsRegular.cellSignalHigh,
+                      dropdown: true,
+                      onTap: () {},
+                    ),
+                  ),
                 ),
                 const SizedBox(width: 8),
-                TonalPill(
-                  icon: PhosphorIconsRegular.downloadSimple,
-                  label: 'Offline',
-                  onTap: onOffline,
+                FilterChipPill(
+                  label: 'Avoid blackspots',
+                  selected: session.avoidLongBlackspots,
+                  onTap: () => onPrefs(
+                    (s) =>
+                        s.copyWith(avoidLongBlackspots: !s.avoidLongBlackspots),
+                  ),
                 ),
                 const SizedBox(width: 8),
-                TonalPill(
-                  icon: PhosphorIconsRegular.clipboardText,
-                  label: 'Pre-trip report',
-                  onTap: onReport,
-                ),
-                const SizedBox(width: 8),
-                TonalPill(
-                  icon: PhosphorIconsRegular.arrowsLeftRight,
-                  label: 'Compare',
-                  onTap: onCompare,
-                ),
-                const SizedBox(width: 8),
-                TonalPill(
-                  icon: PhosphorIconsRegular.shareNetwork,
-                  label: 'Share',
-                  onTap: onShare,
+                FilterChipPill(
+                  label: 'Near help points',
+                  selected: session.stayNearServices,
+                  onTap: () => onPrefs(
+                    (s) => s.copyWith(stayNearServices: !s.stayNearServices),
+                  ),
                 ),
               ],
             ),
           ),
         ),
-        stagger(
-          SheetSectionTitle(
-            'Signal along the way',
-            subtitle: 'Estimated for ${operatorLabel(op)}',
-          ),
-        ),
+        const SizedBox(height: 14),
         stagger(
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: SignalProfileChart(route: route, op: op),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text.rich(
+                  TextSpan(
+                    children: [
+                      TextSpan(
+                        text: formatDuration(route.durationMin),
+                        style: TextStyle(
+                          color: etaColor,
+                          fontSize: 22,
+                          fontWeight: FontWeight.w500,
+                          letterSpacing: -0.3,
+                        ),
+                      ),
+                      TextSpan(
+                        text: '  (${route.distanceKm.toStringAsFixed(0)} km)',
+                        style: TextStyle(color: pal.text, fontSize: 17),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  route.recommended
+                      ? 'Best-signal route now · $why'
+                      : 'via ${route.via} · $why',
+                  maxLines: 2,
+                  style: TextStyle(color: pal.muted, fontSize: 13.5),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+        // Destination card on a grey band.
+        stagger(
+          Container(
+            color: dark ? pal.ink : const Color(0xFFF1F3F6),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            child: Material(
+              color: pal.surface,
+              borderRadius: BorderRadius.circular(16),
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
+                onTap: onDestination,
+                child: SizedBox(
+                  height: 56,
+                  child: Row(
+                    children: [
+                      const SizedBox(width: 16),
+                      Icon(
+                        PhosphorIconsRegular.mapPin,
+                        size: 22,
+                        color: pal.text,
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Text(
+                          session.destination.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(fontSize: 15.5, color: pal.text),
+                        ),
+                      ),
+                      Icon(
+                        PhosphorIconsRegular.caretRight,
+                        size: 18,
+                        color: pal.text,
+                      ),
+                      const SizedBox(width: 16),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+        stagger(title('Signal')),
+        stagger(
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: SignalStretchChart(route: route, op: op),
           ),
         ),
         const SizedBox(height: 10),
-        for (var s = 0; s < route.segments.length; s++)
-          _SegmentRow(
-            segment: route.segments[s],
-            op: op,
-            first: s == 0,
-            last: s == route.segments.length - 1,
-          ),
-        if (others.isNotEmpty)
-          const SheetSectionTitle('Other routes', subtitle: 'Tap one to switch'),
-        for (final r in others)
-          _OtherRouteRow(
-            route: r,
-            base: route,
-            op: op,
-            onTap: () => onSelectRoute(r.id),
-          ),
-        const SheetSectionTitle('Coverage by network'),
-        for (final o in const ['jio', 'airtel', 'vi', 'bsnl'])
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: SignalNotes(route: route, op: op, blackspot: blackspot),
+        ),
+        const SizedBox(height: 14),
+        divider,
+        title('Steps'),
+        StepList(
+          origin: session.origin.name,
+          steps: routeSteps(route, op, session.destination.name),
+        ),
+        const SizedBox(height: 8),
+        divider,
+        if (others.isNotEmpty) ...[
+          title('Other routes'),
+          for (final r in others)
+            _OtherRouteRow(
+              route: r,
+              base: route,
+              op: op,
+              onTap: () => onSelectRoute(r.id),
+            ),
+          const SizedBox(height: 8),
+          divider,
+        ],
+        title('Coverage by network'),
+        for (final o in NetworkTabs.ops)
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
             child: Row(
@@ -1014,141 +1266,6 @@ class DirectionsBody extends StatelessWidget {
             ),
           ),
       ],
-    );
-  }
-}
-
-/// A bar per route segment: width = distance, height and colour = expected
-/// signal. Our version of a "busy hours" histogram.
-class SignalProfileChart extends StatelessWidget {
-  const SignalProfileChart({super.key, required this.route, required this.op});
-
-  final JourneyRoute route;
-  final String op;
-
-  @override
-  Widget build(BuildContext context) {
-    final pal = context.palette;
-    final total = route.segments.fold<double>(0, (t, s) => t + s.km);
-    double h(String level) => switch (level) {
-      'good' => 1.0,
-      'moderate' => 0.68,
-      'weak' => 0.4,
-      _ => 0.16,
-    };
-    return Semantics(
-      label: 'Signal along the route chart',
-      child: SizedBox(
-        height: 74,
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            for (final s in route.segments)
-              Expanded(
-                flex: (s.km / total * 1000).round().clamp(1, 1000),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 1.5),
-                  child: TweenAnimationBuilder<double>(
-                    tween: Tween(begin: 0, end: h(s.levelFor(op))),
-                    duration: Motion.of(context, const Duration(milliseconds: 500)),
-                    curve: Motion.enter,
-                    builder: (context, v, _) => FractionallySizedBox(
-                      heightFactor: v.clamp(0.02, 1.0),
-                      alignment: Alignment.bottomCenter,
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          color: pal.level(s.levelFor(op)).withValues(
-                            alpha: 0.85,
-                          ),
-                          borderRadius: const BorderRadius.vertical(
-                            top: Radius.circular(6),
-                            bottom: Radius.circular(2),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _SegmentRow extends StatelessWidget {
-  const _SegmentRow({
-    required this.segment,
-    required this.op,
-    required this.first,
-    required this.last,
-  });
-
-  final RouteSegment segment;
-  final String op;
-  final bool first;
-  final bool last;
-
-  @override
-  Widget build(BuildContext context) {
-    final pal = context.palette;
-    final level = segment.levelFor(op);
-    return IntrinsicHeight(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const SizedBox(width: 26),
-          SizedBox(
-            width: 14,
-            child: Column(
-              children: [
-                Expanded(
-                  child: Container(
-                    width: 2,
-                    color: first ? Colors.transparent : pal.border,
-                  ),
-                ),
-                Container(
-                  width: 10,
-                  height: 10,
-                  decoration: BoxDecoration(
-                    color: pal.level(level),
-                    shape: BoxShape.circle,
-                  ),
-                ),
-                Expanded(
-                  child: Container(
-                    width: 2,
-                    color: last ? Colors.transparent : pal.border,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 10),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    segment.label,
-                    style: const TextStyle(fontWeight: FontWeight.w500),
-                  ),
-                  MetaLine([
-                    '${segment.km.toStringAsFixed(0)} km',
-                    formatDuration(segment.min),
-                  ]),
-                ],
-              ),
-            ),
-          ),
-          Center(child: SignalChip(level: level, compact: true)),
-          const SizedBox(width: 20),
-        ],
-      ),
     );
   }
 }

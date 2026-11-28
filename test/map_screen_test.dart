@@ -54,8 +54,9 @@ void main() {
   ) async {
     await _pumpMap(tester);
     expect(find.text('Where to?'), findsOneWidget);
-    expect(find.text('Signal around you'), findsOneWidget);
-    expect(find.text('Directions'), findsOneWidget);
+    expect(find.text('Continue your trip'), findsOneWidget);
+    expect(find.textContaining('Signal Check'), findsOneWidget);
+    expect(find.byTooltip('Directions'), findsOneWidget);
     expect(find.byType(SpringSheet), findsOneWidget);
     await tester.pumpWidget(const SizedBox.shrink());
   });
@@ -64,7 +65,8 @@ void main() {
     tester,
   ) async {
     final container = await _pumpMap(tester);
-    await tester.tap(find.text('Directions'));
+    // The "Make plans" suggestion pill opens directions.
+    await tester.tap(find.textContaining('to Srisailam?'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 100));
 
@@ -75,11 +77,18 @@ void main() {
     await tester.pump(const Duration(milliseconds: 1600));
     await tester.pump(const Duration(milliseconds: 400));
     expect(find.text('Finding the best-signal route…'), findsNothing);
+    expect(find.text('Drive'), findsOneWidget);
     expect(find.text('Start'), findsOneWidget);
-    expect(find.text('Jio'), findsOneWidget);
+    expect(find.text('Avoid blackspots'), findsOneWidget);
+    // Networks only: no "All" tab in directions.
+    expect(find.text('All'), findsNothing);
+    expect(find.text('Airtel'), findsWidgets);
 
     // Network tabs switch the operator.
-    await tester.tap(find.text('Jio'));
+    await tester.tap(find.text('Airtel').first);
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(container.read(sessionProvider)?.operatorFilter, 'airtel');
+    await tester.tap(find.text('Jio').first);
     await tester.pump(const Duration(milliseconds: 400));
     expect(container.read(sessionProvider)?.operatorFilter, 'jio');
 

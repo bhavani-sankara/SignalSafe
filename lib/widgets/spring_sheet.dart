@@ -51,6 +51,7 @@ class SpringSheet extends StatefulWidget {
     required this.builder,
     this.initialDetent = SheetDetent.half,
     this.header,
+    this.footer,
     this.onDetentChanged,
   });
 
@@ -66,6 +67,11 @@ class SpringSheet extends StatefulWidget {
 
   /// Pinned at the top of the sheet (handle + title). Not part of the scroll.
   final Widget? header;
+
+  /// Pinned at the bottom of the sheet (an action pill row). Stays visible at
+  /// every detent, including peek, while the header and body above it are
+  /// clipped as the sheet shrinks.
+  final Widget? footer;
 
   /// Scrollable content. Must use the given controller and physics.
   final Widget Function(
@@ -196,8 +202,7 @@ class _SpringSheetState extends State<SpringSheet>
 
   void _onDragStart(DragStartDetails _) {
     _anim.stop();
-    _dragScrollsContent =
-        _atFull && _scroll.hasClients && _scroll.offset > 0;
+    _dragScrollsContent = _atFull && _scroll.hasClients && _scroll.offset > 0;
   }
 
   void _onDragUpdate(DragUpdateDetails d) {
@@ -307,21 +312,43 @@ class _SpringSheetState extends State<SpringSheet>
                           // Status-bar spacer grows in as the sheet goes full.
                           SizedBox(height: media.padding.top * _expansion),
                           _Handle(onTap: _cycle, fade: _expansion),
-                          ?widget.header,
                           Expanded(
-                            child: MediaQuery.removePadding(
-                              context: context,
-                              removeTop: true,
-                              removeBottom: true,
-                              child: widget.builder(
-                                context,
-                                _scroll,
-                                const NeverScrollableScrollPhysics(
-                                  parent: ClampingScrollPhysics(),
-                                ),
+                            // Header + body are laid out at least 240 tall
+                            // and clipped, so at peek they simply slide
+                            // under the footer instead of overflowing.
+                            child: ClipRect(
+                              child: LayoutBuilder(
+                                builder: (context, box) {
+                                  final h = math.max(box.maxHeight, 240.0);
+                                  return OverflowBox(
+                                    alignment: Alignment.topCenter,
+                                    minHeight: h,
+                                    maxHeight: h,
+                                    child: Column(
+                                      children: [
+                                        ?widget.header,
+                                        Expanded(
+                                          child: MediaQuery.removePadding(
+                                            context: context,
+                                            removeTop: true,
+                                            removeBottom: true,
+                                            child: widget.builder(
+                                              context,
+                                              _scroll,
+                                              const NeverScrollableScrollPhysics(
+                                                parent: ClampingScrollPhysics(),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                },
                               ),
                             ),
                           ),
+                          ?widget.footer,
                         ],
                       ),
                     ),

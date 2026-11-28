@@ -59,13 +59,11 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 children: [
                   Padding(
                     padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+                    // Flat state of the search bar: on a page it sits on a
+                    // grey fill with a hairline instead of floating.
                     child: Container(
                       height: 54,
-                      decoration: BoxDecoration(
-                        color: pal.surface,
-                        borderRadius: BorderRadius.circular(27),
-                        boxShadow: softShadow(context, strength: 1.3),
-                      ),
+                      decoration: searchBarDecoration(context, flat: true),
                       child: Row(
                         children: [
                           IconButton(
@@ -127,7 +125,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                         : ListView(
                             padding: const EdgeInsets.only(bottom: 24),
                             children: [
-                              if (showRecents && session.recents.isNotEmpty) ...[
+                              if (showRecents &&
+                                  session.recents.isNotEmpty) ...[
                                 _label(context, 'Recent'),
                                 for (final r in session.recents)
                                   _row(
@@ -152,18 +151,22 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                               ],
                               for (var i = 0; i < results.length; i++)
                                 _placeRow(
-                                  context,
-                                  session,
-                                  results[i],
-                                  settingOrigin,
-                                ).animate(
-                                  key: ValueKey('$q-$_category-${results[i].id}'),
-                                ).fadeIn(
-                                  delay: Motion.reduced(context)
-                                      ? Duration.zero
-                                      : (18 * i.clamp(0, 10)).ms,
-                                  duration: 200.ms,
-                                ),
+                                      context,
+                                      session,
+                                      results[i],
+                                      settingOrigin,
+                                    )
+                                    .animate(
+                                      key: ValueKey(
+                                        '$q-$_category-${results[i].id}',
+                                      ),
+                                    )
+                                    .fadeIn(
+                                      delay: Motion.reduced(context)
+                                          ? Duration.zero
+                                          : (18 * i.clamp(0, 10)).ms,
+                                      duration: 200.ms,
+                                    ),
                             ],
                           ),
                   ),
@@ -295,7 +298,10 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               color: pal.muted,
             ),
             const SizedBox(height: 12),
-            Text('No places found', style: Theme.of(context).textTheme.titleMedium),
+            Text(
+              'No places found',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
             const SizedBox(height: 4),
             Text(
               'Try another name or clear the filters.',
