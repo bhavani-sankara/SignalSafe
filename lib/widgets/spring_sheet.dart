@@ -50,6 +50,7 @@ class SpringSheet extends StatefulWidget {
     required this.halfFraction,
     required this.builder,
     this.initialDetent = SheetDetent.half,
+    this.halfHeight,
     this.header,
     this.footer,
     this.onDetentChanged,
@@ -64,6 +65,10 @@ class SpringSheet extends StatefulWidget {
   final double halfFraction;
 
   final SheetDetent initialDetent;
+
+  /// Exact half detent above the bottom clearance, when the content decides
+  /// where the sheet should stop (overrides [halfFraction]).
+  final double? halfHeight;
 
   /// Pinned at the top of the sheet (handle + title). Not part of the scroll.
   final Widget? header;
@@ -102,8 +107,12 @@ class _SpringSheetState extends State<SpringSheet>
   bool _dragScrollsContent = false;
 
   double get _peek => _bottomClearance + widget.peekHeight;
-  double get _half =>
-      math.max(_peek + 80, _available * widget.halfFraction + _bottomClearance);
+  double get _half => math.max(
+    _peek + 80,
+    widget.halfHeight != null
+        ? math.min(widget.halfHeight! + _bottomClearance, _available * 0.8)
+        : _available * widget.halfFraction + _bottomClearance,
+  );
   double get _full => _available;
 
   double _px(SheetDetent d) => switch (d) {
@@ -133,6 +142,15 @@ class _SpringSheetState extends State<SpringSheet>
       old.controller._state = null;
       widget.controller._state = this;
     }
+    // The half detent moved (e.g. Explore → Drive): glide to the new spot
+    // if we're resting on, or heading to, half.
+    if ((old.halfHeight != widget.halfHeight ||
+            old.peekHeight != widget.peekHeight) &&
+        _initialised) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _settle(_detent);
+      });
+    }
   }
 
   @override
@@ -146,6 +164,15 @@ class _SpringSheetState extends State<SpringSheet>
   void _onTick() {
     setState(() => _height = _anim.value);
     widget.controller._notify();
+  }
+
+  /// Height changed during layout (first build, resize): tell listeners
+  /// such as the floating map buttons once the frame is done, so they don't
+  /// sit at a stale position behind the sheet.
+  void _notifyAfterLayout() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) widget.controller._notify();
+    });
   }
 
   void _setHeight(double h) {
@@ -264,9 +291,11 @@ class _SpringSheetState extends State<SpringSheet>
         if (!_initialised) {
           _initialised = true;
           _height = _px(_detent);
+          _notifyAfterLayout();
         } else if (layoutChanged && !_anim.isAnimating) {
           // Rotation or resize: stay on the same detent.
           _height = _px(_detent);
+          _notifyAfterLayout();
         }
 
         // Corners flatten as the sheet becomes the full screen.

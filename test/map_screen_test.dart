@@ -54,10 +54,10 @@ void main() {
   ) async {
     await _pumpMap(tester);
     expect(find.text('Where to?'), findsOneWidget);
-    expect(find.text('Continue your trip'), findsOneWidget);
-    expect(find.textContaining('Signal Check'), findsOneWidget);
     expect(find.byTooltip('Directions'), findsOneWidget);
     expect(find.byType(SpringSheet), findsOneWidget);
+    // Opens tucked at the bottom: only the area strip shows.
+    expect(tester.getTopLeft(find.text('Gachibowli')).dy, greaterThan(750));
     await tester.pumpWidget(const SizedBox.shrink());
   });
 
@@ -65,8 +65,7 @@ void main() {
     tester,
   ) async {
     final container = await _pumpMap(tester);
-    // The "Make plans" suggestion pill opens directions.
-    await tester.tap(find.textContaining('to Srisailam?'));
+    await tester.tap(find.byTooltip('Directions'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 100));
 
@@ -105,9 +104,19 @@ void main() {
     await _pumpMap(tester);
     final sheet = tester.state(find.byType(SpringSheet));
     expect(sheet, isNotNull);
-    await tester.fling(find.text('Continue your trip'), const Offset(0, -300), 1500);
+    // Peek → half → full, one flick per detent.
+    await tester.fling(find.text('Gachibowli'), const Offset(0, -300), 1500);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 700));
+    expect(find.textContaining('Signal Check'), findsOneWidget);
+    await tester.fling(
+      find.textContaining('Signal Check'),
+      const Offset(0, -300),
+      1500,
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 700));
+    expect(find.text('Signal near you'), findsOneWidget);
     expect(find.byTooltip('Show map'), findsOneWidget);
     // Search chrome has faded out and no longer takes taps.
     final opacity = tester.widget<Opacity>(

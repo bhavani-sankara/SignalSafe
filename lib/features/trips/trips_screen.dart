@@ -9,8 +9,10 @@ import '../../core/session.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/motion.dart';
 import '../../widgets/hud.dart';
+import '../../widgets/route_map_preview.dart';
 import '../../widgets/session_gate.dart';
 import '../map/map_widgets.dart';
+import '../map/route_details.dart';
 
 class TripsScreen extends ConsumerWidget {
   const TripsScreen({super.key});
@@ -311,7 +313,6 @@ class TripsScreen extends ConsumerWidget {
     final pal = context.palette;
     final dark = Theme.of(context).brightness == Brightness.dark;
     final lowMin = lowSignalMinutes(route, session.operatorFilter);
-    final stats = route.stats[session.operatorFilter] ?? route.stats['all']!;
     final score = networkScore(route, session.operatorFilter);
 
     return Material(
@@ -330,7 +331,11 @@ class TripsScreen extends ConsumerWidget {
                 borderRadius: BorderRadius.circular(18),
                 child: Stack(
                   children: [
-                    const RoutePreview(height: 150),
+                    // Real map, fitted to the route (static, loads once).
+                    RouteMapPreview(
+                      route: route,
+                      op: session.operatorFilter,
+                    ),
                     Positioned(
                       left: 10,
                       top: 10,
@@ -372,7 +377,13 @@ class TripsScreen extends ConsumerWidget {
                     '${route.distanceKm.toStringAsFixed(0)} km',
                   ]),
                   const SizedBox(height: 12),
-                  SignalCoverageBar(stats: stats, height: 6),
+                  MiniSignalBars(
+                    route: route,
+                    op: session.operatorFilter == 'all'
+                        ? session.preferredOperator
+                        : session.operatorFilter,
+                    height: 30,
+                  ),
                   const SizedBox(height: 10),
                   Row(
                     children: [
